@@ -22,5 +22,6 @@
 * https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/Learn%20the%20Architecture/Armv8-A%20virtualization.pdf?revision=a765a7df-1a00-434d-b241-357bfda2dd31
 * https://github.com/riscv/riscv-isa-manual/releases/download/riscv-isa-release-db98c92-2024-12-20/riscv-privileged.pdf
 * https://tinylab.org/
+* https://gitee.com/tinylab/riscv-linux
 * https://github.com/riscvarchive/riscv-v-spec
 * https://www.arm.com/developer-hub/servers-and-cloud-computing/arm-simd
