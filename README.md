@@ -3,6 +3,7 @@
 * https://github.com/zhaijie1314521/free-cursor
 * https://deepinfra.com/chat
 * https://devpn.github.io/
+* https://github.com/funstory-ai/BabelDOC
 
 
 
