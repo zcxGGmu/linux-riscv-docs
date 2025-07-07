@@ -15,7 +15,7 @@
 * `arm`: https://www.zhihu.com/column/c_1520029500636696576
 * https://www.cnblogs.com/LoyenWang/category/1828942.html
 * `arm`: https://www.cnblogs.com/LoyenWang/category/1828942.html
-* `riscv`: https://tinylab.org/，搜索关键字虚拟化
+* `riscv`: https://tinylab.org/  搜索关键字虚拟化
 
 2、`riscv/arm` 
 
