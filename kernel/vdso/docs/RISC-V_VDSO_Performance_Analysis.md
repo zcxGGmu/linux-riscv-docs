@@ -51,28 +51,48 @@
 ### 2.4 系统架构对比图
 
 ```mermaid
-graph TB
-    subgraph "RISC-V 架构"
-        App1["用户态应用"] -->|1. clock_gettime| VDSO1["VDSO (用户态映射)"]
-        VDSO1 -->|2. __arch_get_hw_counter| CSR["csr_read CSR_TIME"]
-        CSR -->|3. 陷入异常| Trap["异常处理"]
-        Trap -->|4. 切换到 M-mode| MMode["M-mode 固件"]
-        MMode -->|5. 读取 time 寄存器| TimeReg["CSR_TIME"]
+flowchart TB
+    subgraph RISCV["RISC-V 架构 (慢速路径)"]
+        direction TB
+        App1["用户态应用"]
+        VDSO1["VDSO (用户态映射)"]
+        CSR["csr_read CSR_TIME"]
+        Trap["异常处理 - S-mode → M-mode"]
+        MMode["M-mode 固件"]
+        TimeReg["CSR_TIME 寄存器"]
+        Perf1["⚠️ 性能瓶颈<br/>~180-370 周期"]
+
+        App1 -->|1. clock_gettime| VDSO1
+        VDSO1 -->|2. __arch_get_hw_counter| CSR
+        CSR -->|3. 陷入异常| Trap
+        Trap -->|4. 切换模式| MMode
+        MMode -->|5. 读取| TimeReg
         TimeReg -->|6. 返回时间值| VDSO1
-        MMode -.->|~180-370 周期| Perf1["性能瓶颈"]
+        Trap -.->|开销巨大| Perf1
     end
 
-    subgraph "x86_64 架构"
-        App2["用户态应用"] -->|1. clock_gettime| VDSO2["VDSO (用户态映射)"]
-        VDSO2 -->|2. __arch_get_hw_counter| TSC["rdtsc 指令"]
-        TSC -->|3. 直接读取| TSCReg["TSC 寄存器"]
+    subgraph X86["x86_64 架构 (快速路径)"]
+        direction TB
+        App2["用户态应用"]
+        VDSO2["VDSO (用户态映射)"]
+        TSC["rdtsc 指令"]
+        TSCReg["TSC 寄存器"]
+        Perf2["✓ 高性能<br/>~10-20 周期"]
+
+        App2 -->|1. clock_gettime| VDSO2
+        VDSO2 -->|2. __arch_get_hw_counter| TSC
+        TSC -->|3. 直接读取| TSCReg
         TSCReg -->|4. 返回时间值| VDSO2
-        TSC -.->|~10-20 周期| Perf2["高性能"]
+        TSC -.->|无模式切换| Perf2
     end
 
-    style Perf1 fill:#ff6b6b
-    style Perf2 fill:#51cf66
+    RISCV ==>|"6.4倍性能差距"| X86
+
+    style Perf1 fill:#ff6b6b,color:#fff
+    style Perf2 fill:#51cf66,color:#fff
     style Trap fill:#ffd43b
+    style CSR fill:#ff8787
+    style TSC fill:#69db7c
 ```
 
 **架构差异说明：**
@@ -661,33 +681,53 @@ rdtime  rd, rs1  # 读取时间戳到 rd，无需陷入
 
 ```mermaid
 flowchart TB
-    subgraph "原始实现 (无缓存)"
-        App1[用户态应用] -->|每次调用| VDSO1[VDSO]
-        VDSO1 -->|每次| CSR1[csr_read CSR_TIME]
-        CSR1 -->|~180-370 周期| Trap1[陷入 M-mode]
-        Trap1 -->|返回时间| VDSO1
-        VDSO1 -->|返回| App1
+    subgraph ORIGINAL["原始实现 (无缓存) - 每次都陷入"]
+        direction TB
+        App1["用户态应用"]
+        VDSO1["VDSO"]
+        CSR1["csr_read CSR_TIME"]
+        Trap1["陷入 M-mode"]
+        Result1["返回时间"]
+
+        App1 -->|每次调用| VDSO1
+        VDSO1 -->|每次读取| CSR1
+        CSR1 -->|~180-370 周期| Trap1
+        Trap1 -->|返回| VDSO1
+        VDSO1 -->|返回结果| App1
     end
 
-    subgraph "优化实现 (带缓存)"
-        App2[用户态应用] -->|第1次调用| VDSO2[VDSO]
-        VDSO2 -->|缓存失效| CSR2[csr_read CSR_TIME]
-        CSR2 -->|~180-370 周期| Trap2[陷入 M-mode]
-        Trap2 -->|更新缓存| Cache[时间戳缓存]
-        Cache -->|返回| VDSO2
+    subgraph OPTIMIZED["优化实现 (带缓存) - 90%+ 命中"]
+        direction TB
+        App2["用户态应用"]
+        VDSO2["VDSO"]
+        Check{"缓存有效?"}
+        Cache["时间戳缓存<br/>(快速路径)"]
+        FastPath["✓ 快速路径<br/>~10-30 周期"]
+        CSR2["csr_read CSR_TIME"]
+        Trap2["陷入 M-mode<br/>(慢速路径)"]
+        SlowPath["更新缓存<br/>~180-370 周期"]
 
-        App2 -->|第2-N次调用| VDSO3[VDSO]
-        VDSO3 -->|检查缓存| Check{缓存有效?}
-        Check -->|是<br/>~10-30 周期| FastPath[快速路径<br/>返回缓存值]
-        Check -->|否| SlowPath[慢速路径<br/>更新缓存]
-        FastPath -->|返回| VDSO3
-        SlowPath -->|更新| Cache
+        App2 -->|每次调用| VDSO2
+        VDSO2 -->|检查| Check
+        Check -->|90% 命中| Cache
+        Cache -->|返回| FastPath
+        FastPath -->|~10-30 周期| VDSO2
+        Check -->|10% 失效| CSR2
+        CSR2 -->|更新| Trap2
+        Trap2 -->|更新| SlowPath
+        SlowPath -->|新值| Cache
+        VDSO2 -->|返回结果| App2
     end
 
-    style CSR1 fill:#ff6b6b
-    style CSR2 fill:#ffd43b
-    style FastPath fill:#51cf66
+    ORIGINAL ==>|"性能提升 8-10倍"| OPTIMIZED
+
+    style CSR1 fill:#ff6b6b,color:#fff
+    style Trap1 fill:#ff8787,color:#fff
+    style FastPath fill:#51cf66,color:#fff
     style Cache fill:#a0d2ff
+    style CSR2 fill:#ffd43b
+    style Trap2 fill:#ff922b
+    style Result1 fill:#ffe0e0
 ```
 
 **缓存命中分析：**
