@@ -437,44 +437,41 @@ pie title "x86_64 clock_gettime CPU 周期分解"
 
 ```mermaid
 flowchart TD
-    Start([用户态应用<br/>调用 clock_gettime]) --> GLIBC[glibc<br/>clock_gettime@@GLIBC_2.27]
-
-    GLIBC --> VDSO_Entry[VDSO 入口点<br/>__vdso_clock_gettime]
-
-    VDSO_Entry --> VDSO_Common[__cvdso_clock_gettime_data<br/>通用 VDSO 实现]
+    Start([用户态应用<br/>调用 clock_gettime]) --> GLIBC[glibc<br/>clock_gettime]
+    GLIBC --> VDSO_Entry[VDSO 入口点]
+    VDSO_Entry --> VDSO_Common[通用 VDSO 实现]
     VDSO_Common --> Check_Mode{检查时钟模式}
 
-    Check_Mode -->|高精度模式| Do_HRes[do_hres<br/>高分辨率时间获取]
-    Check_Mode -->|粗粒度模式| Do_Coarse[do_coarse<br/>粗粒度时间获取]
-    Check_Mode -->|Time Namespace| Do_Timens[do_hres_timens<br/>时间命名空间]
+    Check_Mode -->|高精度| Do_HRes[do_hres]
+    Check_Mode -->|粗粒度| Do_Coarse[do_coarse]
+    Check_Mode -->|Time NS| Do_Timens[do_hres_timens]
 
-    Do_HRes --> Seq_Loop{序列号循环<br/>检查并发更新}
-    Seq_Loop -->|seq 为奇数| Wait[cpu_relax<br/>等待更新完成]
+    Do_HRes --> Seq_Loop{序列号循环}
+    Seq_Loop -->|seq奇数| Wait[cpu_relax等待]
     Wait --> Seq_Loop
-    Seq_Loop -->|seq 为偶数| Mem_Barrier[smp_rmb<br/>读内存屏障]
+    Seq_Loop -->|seq偶数| Mem_Barrier[smp_rmb屏障]
 
-    Mem_Barrier --> Get_Timestamp[vdso_get_timestamp<br/>获取时间戳]
-    Get_Timestamp --> Arch_Counter[__arch_get_hw_counter<br/>架构特定计数器]
-
+    Mem_Barrier --> Get_Timestamp[vdso_get_timestamp]
+    Get_Timestamp --> Arch_Counter[架构特定计数器]
     Arch_Counter --> RISCV_Path{架构分支}
 
-    RISCV_Path -->|RISC-V| CSR_Trigger[csr_read CSR_TIME<br/>触发 csrr 指令]
-    CSR_Trigger --> Exception[🚨 陷入异常<br/>S-mode → M-mode]
-    Exception --> M_Mode_Handle[M-mode 处理程序<br/>读取 CSR_TIME]
-    M_Mode_Handle --> Return_Time[返回时间值<br/>~180-370 周期]
+    RISCV_Path -->|RISC-V| CSR_Trigger[csr_read CSR_TIME]
+    CSR_Trigger --> Exception[陷入异常到M-mode]
+    Exception --> M_Mode_Handle[M-mode处理程序]
+    M_Mode_Handle --> Return_Time[返回时间值]
 
-    RISCV_Path -->|x86_64| RDTSC[rdtsc_ordered<br/>直接读取 TSC<br/>~10-20 周期]
-    RISCV_Path -->|ARM64| CNTVCT[mrs cntvct_el0<br/>直接读取计数器<br/>~10-20 周期]
+    RISCV_Path -->|x86_64| RDTSC[rdtsc_ordered直接读TSC]
+    RISCV_Path -->|ARM64| CNTVCT[mrs cntvct_el0读计数器]
 
-    Return_Time --> Calc_NS[vdso_calc_ns<br/>周期转换为纳秒]
+    Return_Time --> Calc_NS[vdso_calc_ns]
     RDTSC --> Calc_NS
     CNTVCT --> Calc_NS
 
-    Calc_NS --> Check_Retry{vdso_read_retry<br/>检查序列号变化}
-    Check_Retry -->|序列号变化| Seq_Loop
-    Check_Retry -->|序列号未变| Set_Timespec[vdso_set_timespec<br/>设置时间戳结构]
+    Calc_NS --> Check_Retry{vdso_read_retry检查序列}
+    Check_Retry -->|序列变化| Seq_Loop
+    Check_Retry -->|序列未变| Set_Timespec[vdso_set_timespec]
 
-    Set_Timespec --> Return_Success([✅ 返回成功])
+    Set_Timespec --> Return_Success([返回成功])
 
     Do_Coarse --> Return_Success
     Do_Timens --> Return_Success
@@ -485,6 +482,10 @@ flowchart TD
     style CNTVCT fill:#51cf66
     style Return_Time fill:#ff8787
 ```
+
+**流程说明：**
+- 🔴 红色路径：RISC-V 需要陷入 M-mode (性能瓶颈)
+- 🟢 绿色路径：x86_64/ARM64 直接访问 (高性能)
 
 #### 5.1.2 do_hres 函数详细分析
 
@@ -1458,36 +1459,59 @@ for i in range(0, 1000000, batch_size):
 
 ### 7.1 各优化方案性能对比
 
-```mermaid
-radar-beta
-    title "RISC-V VDSO 优化方案对比 (相对原始性能)"
-    axis "性能提升", "实施难度", "兼容性", "适用范围", "风险"
+**优化方案五维对比表：**
 
-    curve "VDSO 时间缓存" : 85, 60, 90, 100, 20
-    curve "CLINT MMIO" : 95, 75, 30, 40, 40
-    curve "内存布局优化" : 35, 50, 95, 100, 10
-    curve "汇编级优化" : 15, 40, 100, 100, 5
-    curve "应用层优化" : 80, 20, 100, 80, 5
-    curve "URTC 硬件扩展" : 100, 95, 10, 100, 60
-```
+| 优化方案 | 性能提升 | 实施难度 | 兼容性 | 适用范围 | 风险 | 综合评分 |
+|----------|----------|----------|--------|----------|------|----------|
+| VDSO 时间缓存 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | **推荐** |
+| CLINT MMIO | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | M-mode专用 |
+| 内存布局优化 | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | 低风险 |
+| 汇编级优化 | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | 无风险 |
+| 应用层优化 | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐ | 立即可用 |
+| URTC 硬件扩展 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | 长期方案 |
 
 **解读说明：**
-- **面积越大** = 综合效果越好
+- ⭐ 数量越多表示程度越高
 - **VDSO 时间缓存**: 高性价比，短期推荐
 - **CLINT MMIO**: 高性能但仅限 M-mode
 - **URTC 硬件扩展**: 最佳方案但需长期规划
 
 ### 7.2 优化前后性能对比
 
-```mermaid
-xychart-beta
-    title "各优化方案性能提升对比 (相对于原始 CSR_TIME)"
-    x-axis ["原始", "时间缓存", "CLINT MMIO", "应用层优化", "URTC"]
-    y-axis "性能倍数" 0 --> 40
+**性能提升柱状图：**
 
-    line [1, 8, 25, 5, 35]
-    bar [1, 8, 25, 5, 35]
+```mermaid
+%%{init: {'theme':'base'}}%%
+graph LR
+    subgraph 性能对比
+    direction TB
+        Original[原始 CSR_TIME<br/>1x 基准]
+        Cache[VDSO 时间缓存<br/>8x 提升]
+        CLINT[CLINT MMIO<br/>25x 提升]
+        App[应用层优化<br/>5x 提升]
+        URTC[URTC 硬件<br/>35x 提升]
+    end
+
+    Original --> Cache
+    Cache --> CLINT
+    CLINT --> URTC
+
+    style Original fill:#ff6b6b
+    style Cache fill:#ffd43b
+    style CLINT fill:#a0d2ff
+    style App fill:#51cf88
+    style URTC fill:#20c997
 ```
+
+**详细数据表：**
+
+| 优化方案 | 相对性能 | 绝对性能 (调用/秒) | 实施周期 | 适用场景 |
+|----------|----------|---------------------|----------|----------|
+| 原始 CSR_TIME | 1x | 328,056 | - | 所有系统 |
+| VDSO 时间缓存 | 8x | ~2,600,000 | 1-3月 | 高频调用场景 |
+| CLINT MMIO | 25x | ~8,200,000 | 3-6月 | M-mode 嵌入式 |
+| 应用层优化 | 5x | ~1,600,000 | 立即 | AI/推理工作负载 |
+| URTC 硬件扩展 | 35x | ~11,500,000 | 6-24月 | 未来架构 |
 
 **数据说明：**
 - 原始 CSR_TIME: 1x (基准)
