@@ -1,0 +1,12 @@
+Quick disable: Revert the time cache changes to restore system functionality.
+This can be used if you need to quickly get the system working again.
+
+To disable:
+1. cd /home/zcxggmu/workspace/patch-work/linux
+2.patch -p1 < /path/to/0002-quick-disable-time-cache.patch
+
+Or simply disable in Kconfig:
+1. cd /home/zcxggmu/workspace/patch-work/linux
+2. make menuconfig
+3. Platform type -> RISC-V VDSO time caching optimization = N
+4. Recompile kernel
