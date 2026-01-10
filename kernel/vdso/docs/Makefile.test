@@ -1,0 +1,125 @@
+# Makefile for RISC-V VDSO Time Cache Testing
+# Build: make
+# Clean: make clean
+# Test:  make test
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -g
+LDFLAGS = -lrt -lpthread
+
+# Directories
+BUILD_DIR = build
+REPORT_DIR = reports
+
+# Source files
+TEST_SRC = vdso_cache_test.c
+PERF_SRC = vdso_perf_benchmark.c
+
+# Output files
+TEST_BIN = $(BUILD_DIR)/vdso_cache_test
+PERF_BIN = $(BUILD_DIR)/vdso_perf_benchmark
+
+# Phony targets
+.PHONY: all clean test test-quick test-perf test-full help check build dirs
+
+# Default target
+all: build
+
+# Create directories
+dirs:
+	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(REPORT_DIR)
+
+# Build test programs
+build: dirs
+	@echo "Building VDSO cache test programs..."
+	$(CC) $(CFLAGS) -o $(TEST_BIN) $(TEST_SRC) $(LDFLAGS)
+	@echo "  ✓ Built: $(TEST_BIN)"
+ifneq ($(wildcard $(PERF_SRC)),)
+	$(CC) $(CFLAGS) -o $(PERF_BIN) $(PERF_SRC) $(LDFLAGS)
+	@echo "  ✓ Built: $(PERF_BIN)"
+endif
+
+# Quick test
+test-quick: build
+	@echo "Running quick tests..."
+	@./$(TEST_BIN) --quick
+
+# Performance tests only
+test-perf: build
+	@echo "Running performance tests..."
+	@./$(PERF_BIN)
+
+# Full test suite
+test-full: build
+	@echo "Running full test suite..."
+	@./$(TEST_BIN)
+
+# Run tests (alias for full)
+test: test-full
+
+# Run using the automated script
+test-auto: build
+	@echo "Running automated test suite..."
+	@chmod +x run_tests.sh
+	@./run_tests.sh --full
+
+# Generate HTML report
+report: build
+	@chmod +x run_tests.sh
+	@./run_tests.sh --report
+
+# Generate JSON report
+json-report: build
+	@chmod +x run_tests.sh
+	@./run_tests.sh --json
+
+# Check kernel configuration
+check:
+	@echo "Checking kernel configuration..."
+	@if [ -f /proc/config.gz ]; then \
+		zcat /proc/config.gz | grep CONFIG_RISCV_VDSO_TIME_CACHE; \
+		echo ""; \
+		zcat /proc/config.gz | grep CONFIG_GENERIC_GETTIMEOFDAY; \
+	else \
+		echo "Warning: /proc/config.gz not found"; \
+		echo "Kernel must be built with CONFIG_IKCONFIG_PROC=y"; \
+	fi
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BUILD_DIR)
+	@echo "  ✓ Cleaned build directory"
+	@rm -rf $(REPORT_DIR)
+	@echo "  ✓ Cleaned report directory"
+
+# Help
+help:
+	@echo "RISC-V VDSO Time Cache Testing Makefile"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all          - Build test programs (default)"
+	@echo "  build        - Build test programs"
+	@echo "  clean        - Remove build artifacts"
+	@echo "  check        - Verify kernel configuration"
+	@echo ""
+	@echo "Test Targets:"
+	@echo "  test         - Run full test suite"
+	@echo "  test-quick   - Run quick tests (skip stress)"
+	@echo "  test-perf    - Run performance tests only"
+	@echo "  test-full    - Run full test suite"
+	@echo "  test-auto    - Run automated test with script"
+	@echo ""
+	@echo "Report Targets:"
+	@echo "  report       - Generate HTML test report"
+	@echo "  json-report  - Generate JSON test report"
+	@echo ""
+	@echo "Usage:"
+	@echo "  make              # Build tests"
+	@echo "  make test         # Run tests"
+	@echo "  make test-quick   # Quick test"
+	@echo "  make clean        # Clean"
+	@echo ""
+	@echo "Note: Some tests require root privileges for accurate results"
+	@echo "      Consider running 'sudo make test' for best results"
