@@ -1623,79 +1623,66 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     subgraph KERNEL["内核侧 Kernel Side"]
-        direction TB
-        A1["Per-CPU 定时器触发<br/>HRTimer Callback"]
-        A2["读取 CSR_TIME<br/>get_cycles()"]
-        A3["计算 ns 时间戳<br/>timekeeping_cycles_to_ns()"]
-        A4["获取 seqlock<br/>vdso_update_begin()"]
-        A5["写入 per-CPU 缓存<br/>cycles, ns, sec"]
-        A6["释放 seqlock<br/>vdso_update_end()"]
-        A7["重新调度定时器<br/>1ms 后再次触发"]
+        K1["Per-CPU 定时器触发<br/>HRTimer Callback"]
+        K2["读取 CSR_TIME<br/>get_cycles()"]
+        K3["计算 ns 时间戳<br/>timekeeping_cycles_to_ns()"]
+        K4["获取 seqlock<br/>vdso_update_begin()"]
+        K5["写入 per-CPU 缓存<br/>cycles, ns, sec"]
+        K6["释放 seqlock<br/>vdso_update_end()"]
+        K7["重新调度定时器<br/>1ms 后再次触发"]
 
-        A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
-        A7 -.->|循环| A1
+        K1 --> K2 --> K3 --> K4 --> K5 --> K6 --> K7
+        K7 -.->|循环| K1
     end
 
     subgraph VVAR["VVAR 页面<br/>Per-CPU Cache Memory"]
-        direction TB
-        B1["cpu_cache[cpu_id].cycles"]
-        B2["cpu_cache[cpu_id].ns"]
-        B3["cpu_cache[cpu_id].sec"]
-        B4["cpu_cache[cpu_id].nsec"]
-        B5["cpu_cache[cpu_id].seq"]
-        B6["cpu_cache[cpu_id].last_update_cycles"]
-
-        B5 --- B1
-        B5 --- B2
-        B5 --- B3
-        B5 --- B4
-        B5 --- B6
+        V1["cpu_cache cycles"]
+        V2["cpu_cache ns"]
+        V3["cpu_cache sec"]
+        V4["cpu_cache nsec"]
+        V5["cpu_cache seq"]
+        V6["cpu_cache last_update"]
     end
 
     subgraph USER["用户侧 Userside"]
-        direction TB
-        C1["clock_gettime() 调用"]
-        C2["获取当前 CPU ID<br/>__vdso_getcpu()"]
-        C3["读取缓存 seq<br/>READ_ONCE(cache.seq)"]
+        U1["clock_gettime() 调用"]
+        U2["获取当前 CPU ID<br/>__vdso_getcpu()"]
+        U3["读取缓存 seq<br/>READ_ONCE"]
+        U4["读取当前 CYCLE CSR"]
+        U5["计算 delta_cycles"]
+        U6["转换为 delta_ns"]
+        U7{delta_ns 小于阈值?}
+        U8["快路径<br/>读取缓存"]
+        U9["慢路径<br/>读 CSR_TIME"]
+        U10["返回时间戳"]
 
-        C4["检查缓存新鲜度"]
-        C5["读取当前 CYCLE CSR"]
-        C6["计算 delta_cycles"]
-        C7["转换为 delta_ns<br/>cycles_to_ns_approx()"]
-
-        C8{delta_ns 小于<br/>阈值?}
-
-        C9["快路径<br/>读取缓存 sec, nsec"]
-        C10["慢路径<br/>直接读 CSR_TIME"]
-
-        C11["返回时间戳给用户"]
-
-        C1 --> C2 --> C3 --> C4
-        C4 --> C5 --> C6 --> C7 --> C8
-        C8 -->|是 缓存命中| C9
-        C8 -->|否 缓存过期| C10
-        C9 --> C11
-        C10 --> C11
+        U1 --> U2 --> U3 --> U4 --> U5 --> U6 --> U7
+        U7 -->|是| U8
+        U7 -->|否| U9
+        U8 --> U10
+        U9 --> U10
     end
 
-    %% 内核到 VVAR 的数据流
-    A5 ==>|写入| VVAR
+    %% 内核到 VVAR 的数据流（竖直）
+    K5 ==>|写入数据| V1
+    K5 ==>|写入数据| V2
+    K5 ==>|写入数据| V3
+    K5 ==>|写入数据| V4
+    K5 ==>|写入数据| V5
+    K5 ==>|写入数据| V6
 
-    %% VVAR 到用户的数据流
-    VVAR -.->|读取| C3
-    VVAR -.->|读取| C9
+    %% VVAR 到用户的数据流（竖直）
+    V3 -.->|读取| U2
+    V5 -.->|读取| U3
+    V2 -.->|读取| U6
+    V3 -.->|读取| U8
 
-    style KERNEL fill:#e1f5ff
-    style VVAR fill:#fff4e1
-    style USER fill:#e8f5e9
-    style C9 fill:#a5d6a7
-    style C10 fill:#ef9a9a
+    style KERNEL fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style VVAR fill:#fff4e1,stroke:#e65100,stroke-width:2px
+    style USER fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style U8 fill:#a5d6a7,stroke:#2e7d32,stroke-width:2px
+    style U9 fill:#ef9a9a,stroke:#c62828,stroke-width:2px
 ```
-
-**图例说明**:
-- 实线箭头 `-->`: 控制流/直接调用
-- 虚线箭头 `-.->`: 数据读取
-- 粗箭头 `==>`: 数据写入
 
 ### B. 关键文件路径汇总
 
