@@ -1621,60 +1621,36 @@ sequenceDiagram
 #### A.3 数据流图
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph KERNEL["内核侧 Kernel Side"]
-        direction TB
-        K1["Per-CPU 定时器触发<br/>HRTimer Callback"]
-        K2["读取 CSR_TIME<br/>get_cycles()"]
-        K3["计算 ns 时间戳<br/>timekeeping_cycles_to_ns()"]
-        K4["获取 seqlock<br/>vdso_update_begin()"]
-        K5["写入 per-CPU 缓存<br/>cycles, ns, sec"]
-        K6["释放 seqlock<br/>vdso_update_end()"]
-        K7["重新调度定时器<br/>1ms 后再次触发"]
-
-        K1 --> K2 --> K3 --> K4 --> K5 --> K6 --> K7
+        direction LR
+        K1["Per-CPU 定时器触发"] --> K2["读取 CSR_TIME"] --> K3["计算 ns 时间戳"] --> K4["获取 seqlock"] --> K5["写入 per-CPU 缓存"] --> K6["释放 seqlock"] --> K7["重新调度定时器"]
         K7 -.->|循环| K1
     end
 
     subgraph VVAR["VVAR 页面 Per-CPU Cache Memory"]
-        direction TB
-        V1["cpu_cache cycles"]
-        V2["cpu_cache ns"]
-        V3["cpu_cache sec"]
-        V4["cpu_cache nsec"]
-        V5["cpu_cache seq"]
-        V6["cpu_cache last_update"]
-
-        V5 --- V1
-        V5 --- V2
-        V5 --- V3
-        V5 --- V4
-        V5 --- V6
+        direction LR
+        V1["cycles"] --- V5["seq"] --- V2["ns"] --- V3["sec"] --- V4["nsec"] --- V6["last_update"]
     end
 
     subgraph USER["用户侧 Userside"]
-        direction TB
-        U1["clock_gettime() 调用"]
-        U2["获取当前 CPU ID<br/>__vdso_getcpu()"]
-        U3["读取缓存 seq<br/>READ_ONCE"]
-        U4["读取当前 CYCLE CSR"]
-        U5["计算 delta_cycles"]
-        U6["转换为 delta_ns"]
-        U7{delta_ns 小于阈值?}
-        U8["快路径<br/>读取缓存"]
-        U9["慢路径<br/>读 CSR_TIME"]
-        U10["返回时间戳"]
-
-        U1 --> U2 --> U3 --> U4 --> U5 --> U6 --> U7
-        U7 -->|是| U8
-        U7 -->|否| U9
-        U8 --> U10
-        U9 --> U10
+        direction LR
+        U1["clock_gettime 调用"] --> U2["获取 CPU ID"] --> U3["读取缓存 seq"] --> U4["读取 CYCLE CSR"] --> U5["计算 delta"] --> U6["转 delta_ns"] --> U7{新鲜?} --> U8["快路径"] --> U10["返回时间戳"]
+        U7 -->|否| U9["慢路径"] --> U10
     end
 
-    %% 数据流：左到右
-    KERNEL ==>|1. 写入| VVAR
-    VVAR -.->|2. 读取| USER
+    %% 数据流：上到下
+    KERNEL ==>|写入| V1
+    KERNEL ==>|写入| V2
+    KERNEL ==>|写入| V3
+    KERNEL ==>|写入| V4
+    KERNEL ==>|写入| V5
+    KERNEL ==>|写入| V6
+
+    V3 -.->|读取| U2
+    V5 -.->|读取| U3
+    V2 -.->|读取| U6
+    V3 -.->|读取| U8
 
     style KERNEL fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style VVAR fill:#fff4e1,stroke:#e65100,stroke-width:3px
@@ -1684,9 +1660,9 @@ flowchart LR
 ```
 
 **数据流说明**：
-1. **内核侧** → 定时器触发，读取 CSR_TIME，写入 VVAR 缓存
-2. **VVAR 页面** → 存储各 CPU 的缓存数据
-3. **用户侧** → 读取缓存，检查新鲜度，返回时间戳
+1. **内核侧（上）** → 定时器每 1ms 触发，读取 CSR_TIME，写入 VVAR 缓存
+2. **VVAR 页面（中）** → 存储各 CPU 的缓存数据（cycles, ns, sec, seq 等）
+3. **用户侧（下）** → 读取缓存，检查新鲜度，返回时间戳
 
 ### B. 关键文件路径汇总
 
