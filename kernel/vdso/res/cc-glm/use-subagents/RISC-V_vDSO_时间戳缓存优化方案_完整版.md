@@ -1623,46 +1623,50 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     subgraph KERNEL["内核侧 Kernel Side"]
-        direction LR
-        K1["Per-CPU 定时器触发"] --> K2["读取 CSR_TIME"] --> K3["计算 ns 时间戳"] --> K4["获取 seqlock"] --> K5["写入 per-CPU 缓存"] --> K6["释放 seqlock"] --> K7["重新调度定时器"]
-        K7 -.->|循环| K1
+        K1["Per-CPU 定时器触发"]
+        K2["读取 CSR_TIME"]
+        K3["计算时间戳"]
+        K4["写入缓存"]
+        K5["重新调度"]
+
+        K1 --> K2 --> K3 --> K4 --> K5
+        K5 -.-> K1
     end
 
     subgraph VVAR["VVAR 页面 Per-CPU Cache Memory"]
-        direction LR
-        V1["cycles"] --- V5["seq"] --- V2["ns"] --- V3["sec"] --- V4["nsec"] --- V6["last_update"]
+        V1["缓存数据结构<br/>cpu_cache[cpu_id]"]
+        V2["字段: cycles, ns, sec, seq"]
     end
 
     subgraph USER["用户侧 Userside"]
-        direction LR
-        U1["clock_gettime 调用"] --> U2["获取 CPU ID"] --> U3["读取缓存 seq"] --> U4["读取 CYCLE CSR"] --> U5["计算 delta"] --> U6["转 delta_ns"] --> U7{新鲜?} --> U8["快路径"] --> U10["返回时间戳"]
-        U7 -->|否| U9["慢路径"] --> U10
+        U1["clock_gettime 调用"]
+        U2["检查缓存新鲜度"]
+        U3["快路径: 读取缓存"]
+        U4["慢路径: 读 CSR_TIME"]
+        U5["返回时间戳"]
+
+        U1 --> U2
+        U2 -->|缓存有效| U3
+        U2 -->|缓存过期| U4
+        U3 --> U5
+        U4 --> U5
     end
 
     %% 数据流：上到下
-    KERNEL ==>|写入| V1
-    KERNEL ==>|写入| V2
-    KERNEL ==>|写入| V3
-    KERNEL ==>|写入| V4
-    KERNEL ==>|写入| V5
-    KERNEL ==>|写入| V6
-
-    V3 -.->|读取| U2
-    V5 -.->|读取| U3
-    V2 -.->|读取| U6
-    V3 -.->|读取| U8
+    KERNEL ==>|写入数据| V1
+    V2 -.->|读取数据| U2
 
     style KERNEL fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style VVAR fill:#fff4e1,stroke:#e65100,stroke-width:3px
     style USER fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
-    style U8 fill:#a5d6a7,stroke:#2e7d32,stroke-width:2px
-    style U9 fill:#ef9a9a,stroke:#c62828,stroke-width:2px
+    style U3 fill:#a5d6a7,stroke:#2e7d32,stroke-width:2px
+    style U4 fill:#ef9a9a,stroke:#c62828,stroke-width:2px
 ```
 
 **数据流说明**：
-1. **内核侧（上）** → 定时器每 1ms 触发，读取 CSR_TIME，写入 VVAR 缓存
-2. **VVAR 页面（中）** → 存储各 CPU 的缓存数据（cycles, ns, sec, seq 等）
-3. **用户侧（下）** → 读取缓存，检查新鲜度，返回时间戳
+1. **内核侧（上）** → 定时器每 1ms 触发，读取 CSR_TIME，计算时间戳，写入 VVAR 缓存
+2. **VVAR 页面（中）** → 存储各 CPU 的缓存数据（cycles, ns, sec, seq 等字段）
+3. **用户侧（下）** → 检查缓存新鲜度，有效则走快路径，过期则走慢路径
 
 ### B. 关键文件路径汇总
 
