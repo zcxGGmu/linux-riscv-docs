@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="380" viewBox="0 0 900 380">
+<style>text{font-family:system-ui,Segoe UI,Arial;fill:#111} .axis{stroke:#333;stroke-width:1} .grid{stroke:#ddd;stroke-width:1} .lbl{font-size:12px} .title{font-size:16px;font-weight:600} .legend{font-size:12px}</style>
+<text class="title" x="450.0" y="30.0" text-anchor="middle">时间获取接口吞吐（calls/sec）</text>
+<line class="axis" x1="60" y1="60" x2="60" y2="320" />
+<line class="axis" x1="60" y1="320" x2="840" y2="320" />
+<line class="grid" x1="60" y1="320.0" x2="840" y2="320.0" />
+<text class="lbl" x="52" y="324.0" text-anchor="end">0</text>
+<line class="grid" x1="60" y1="268.0" x2="840" y2="268.0" />
+<text class="lbl" x="52" y="272.0" text-anchor="end">3,566,041</text>
+<line class="grid" x1="60" y1="216.00000000000003" x2="840" y2="216.00000000000003" />
+<text class="lbl" x="52" y="220.00000000000003" text-anchor="end">7,132,082</text>
+<line class="grid" x1="60" y1="164.0" x2="840" y2="164.0" />
+<text class="lbl" x="52" y="168.0" text-anchor="end">10,698,124</text>
+<line class="grid" x1="60" y1="112.00000000000001" x2="840" y2="112.00000000000001" />
+<text class="lbl" x="52" y="116.00000000000001" text-anchor="end">14,264,165</text>
+<line class="grid" x1="60" y1="60.0" x2="840" y2="60.0" />
+<text class="lbl" x="52" y="64.0" text-anchor="end">17,830,207</text>
+<text class="lbl" x="157.5" y="338" text-anchor="middle">clock_gettime
+(CLOCK_MONOTONIC)</text>
+<rect x="92.5" y="289.3228205370807" width="58.5" height="30.677179462919298" fill="#4C78A8" />
+<rect x="157.5" y="315.2162888518344" width="58.5" height="4.783711148165594" fill="#F58518" />
+<text class="lbl" x="352.5" y="338" text-anchor="middle">time.time()</text>
+<rect x="287.5" y="60.0" width="58.5" height="260.0" fill="#4C78A8" />
+<rect x="352.5" y="253.80936183186208" width="58.5" height="66.19063816813792" fill="#F58518" />
+<text class="lbl" x="547.5" y="338" text-anchor="middle">time.perf_counter()</text>
+<rect x="482.5" y="61.36547264986883" width="58.5" height="258.6345273501312" fill="#4C78A8" />
+<rect x="547.5" y="258.0314620015348" width="58.5" height="61.968537998465195" fill="#F58518" />
+<text class="lbl" x="742.5" y="338" text-anchor="middle">time.monotonic()</text>
+<rect x="677.5" y="61.36547264986883" width="58.5" height="258.6345273501312" fill="#4C78A8" />
+<rect x="742.5" y="255.73070015395783" width="58.5" height="64.26929984604217" fill="#F58518" />
+<rect x="60" y="348.0" width="12" height="12" fill="#4C78A8" />
+<text class="legend" x="78" y="358.0" >x86_64</text>
+<rect x="220" y="348.0" width="12" height="12" fill="#F58518" />
+<text class="legend" x="238" y="358.0" >RISC-V</text>
+</svg>

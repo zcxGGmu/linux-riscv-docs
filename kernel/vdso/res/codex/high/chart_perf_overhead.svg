@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="380" viewBox="0 0 820 380">
+<style>text{font-family:system-ui,Segoe UI,Arial;fill:#111} .axis{stroke:#333;stroke-width:1} .grid{stroke:#ddd;stroke-width:1} .lbl{font-size:12px} .title{font-size:16px;font-weight:600} .legend{font-size:12px}</style>
+<text class="title" x="410.0" y="30.0" text-anchor="middle">perf top 开销占比（%）</text>
+<line class="axis" x1="60" y1="60" x2="60" y2="320" />
+<line class="axis" x1="60" y1="320" x2="760" y2="320" />
+<line class="grid" x1="60" y1="320.0" x2="760" y2="320.0" />
+<text class="lbl" x="52" y="324.0" text-anchor="end">0</text>
+<line class="grid" x1="60" y1="268.0" x2="760" y2="268.0" />
+<text class="lbl" x="52" y="272.0" text-anchor="end">2</text>
+<line class="grid" x1="60" y1="216.0" x2="760" y2="216.0" />
+<text class="lbl" x="52" y="220.0" text-anchor="end">5</text>
+<line class="grid" x1="60" y1="163.99999999999997" x2="760" y2="163.99999999999997" />
+<text class="lbl" x="52" y="167.99999999999997" text-anchor="end">7</text>
+<line class="grid" x1="60" y1="111.99999999999999" x2="760" y2="111.99999999999999" />
+<text class="lbl" x="52" y="115.99999999999999" text-anchor="end">10</text>
+<line class="grid" x1="60" y1="60.0" x2="760" y2="60.0" />
+<text class="lbl" x="52" y="64.0" text-anchor="end">13</text>
+<text class="lbl" x="176.66666666666669" y="338" text-anchor="middle">__vdso_clock_gettime</text>
+<rect x="98.88888888888889" y="320.0" width="70.00000000000001" height="0.0" fill="#4C78A8" />
+<rect x="176.66666666666669" y="60.0" width="70.00000000000001" height="260.0" fill="#F58518" />
+<text class="lbl" x="410.00000000000006" y="338" text-anchor="middle">libc clock_gettime</text>
+<rect x="332.2222222222223" y="320.0" width="70.00000000000001" height="0.0" fill="#4C78A8" />
+<rect x="410.00000000000006" y="236.53353428786738" width="70.00000000000001" height="83.46646571213262" fill="#F58518" />
+<text class="lbl" x="643.3333333333334" y="338" text-anchor="middle">syscall(总)</text>
+<rect x="565.5555555555557" y="313.73021853805574" width="70.00000000000001" height="6.2697814619442624" fill="#4C78A8" />
+<rect x="643.3333333333335" y="319.6081386586285" width="70.00000000000001" height="0.3918613413715093" fill="#F58518" />
+<rect x="60" y="348.0" width="12" height="12" fill="#4C78A8" />
+<text class="legend" x="78" y="358.0" >x86_64</text>
+<rect x="220" y="348.0" width="12" height="12" fill="#F58518" />
+<text class="legend" x="238" y="358.0" >RISC-V</text>
+</svg>
