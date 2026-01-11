@@ -109,6 +109,23 @@ RISC-V 的 vDSO 高精度时间读取依赖读取 `CSR_TIME`（`rdtime`/`csrr ti
 
 ## 2. vDSO `clock_gettime()` 关键路径：RISC-V vs x86_64
 
+### 2.0 原理图：vDSO 的“读 vvar + 读计数器 + 换算”模型（通用）
+
+```mermaid
+flowchart LR
+  A[userspace: clock_gettime()] --> B[glibc: 解析 clockid / 走 vDSO]
+  B --> C[[vDSO: __vdso_clock_gettime]]
+  C --> D[读 VVAR: vdso_time_data / basetime / mult/shift]
+  C --> E[__arch_get_hw_counter()<br/>读硬件计数器]
+  D --> F[换算: delta*mult + base >> shift]
+  E --> F
+  F --> G[规范化: sec + ns -> timespec]
+  G --> H[返回到 glibc / app]
+  C -. fast path 不可用 .-> I[fall back: syscall/ecall]
+  I --> J[kernel: timekeeping / clocksource]
+  J --> H
+```
+
 ### 2.1 Linux vDSO 读时间的通用算法（与架构无关的主体）
 
 内核源码：`lib/vdso/gettimeofday.c`
@@ -260,7 +277,123 @@ RISC-V 当前内核树里：
 
 这并不替代内核优化，但能在短周期内显著降低 `__vdso_clock_gettime` 的热点占比。
 
-## 5. 建议的进一步验证（用于把“推断”变成“定论”）
+## 5. 纯软件/内核层面还能怎么优化？（回答“能不能做时间戳缓存”等）
+
+### 5.1 先回答：vDSO 能不能“做时间戳缓存”？
+
+**结论：内核提供的 vDSO 本体通常不适合/几乎无法做“可写的跨调用缓存”。**
+
+原因（偏 ABI/安全/实现约束，而不是“想不想”）：
+
+1. **vDSO text 映射通常为 `r-x`**（可执行不可写）。vDSO 代码里很难安全地维护“全局可写状态”。
+2. vVAR (`vdso_time_data`) 页是内核提供的 **只读共享数据页**，它是“内核写、用户读”，用户态不能拿它当缓存写回。
+3. 即使引入“额外的可写页”作为缓存（需要内核修改 vDSO 映射布局/ABI），也会带来：
+   - 更复杂的并发一致性（多线程、信号、fork、vfork、跨 CPU 迁移）
+   - 潜在的信息泄露/攻击面扩大（尤其在 vDSO 这种所有进程都会映射的区域）
+   - 需要 glibc/运行库适配，否则收益有限
+
+**更现实的“缓存”位置：glibc / 运行时（TLS 级缓存）或应用侧缓存。**  
+例如对“频繁打点但允许小误差”的场景，在 libc 里做“每线程缓存 + 过期阈值”通常更合适：不会改内核 ABI、不会影响其他进程、并且易于按场景选择精度。
+
+### 5.2 vDSO 其实已经在“缓存”了：basetime + cycle_last
+
+不要把 vDSO 想成“每次都从 0 算到现在”。它的模型是：
+
+- 内核周期性更新 `vdso_time_data`：`cycle_last`、`mult/shift`、`basetime[clock_id]`
+- 用户态只需读取当前 cycles，然后只计算**相对增量**并合成时间
+
+这就是一种“只读缓存”：把昂贵且低频的更新放到内核，把高频读取变成“读计数器 + 少量算术”。
+
+对应内核写入路径（见 `/home/zcxggmu/workspace/patch-work/linux/kernel/time/vsyscall.c`）：
+
+```mermaid
+sequenceDiagram
+  participant TK as timekeeping (kernel)
+  participant VS as update_vsyscall()
+  participant VVAR as vdso_time_data(VVAR)
+
+  TK->>VS: 时间推进/校时/切换 clocksource
+  VS->>VVAR: vdso_write_begin()  (seq++)
+  VS->>VVAR: 写 clock_mode / mult/shift/mask/cycle_last
+  VS->>VVAR: 写 basetime[CLOCK_*] (realtime/mono/raw...)
+  VS->>VVAR: vdso_write_end()    (seq++)
+```
+
+### 5.3 “纯软件”可做但收益有限的优化点（不改硬件/固件的前提）
+
+> 如果 `CSR_TIME` 读取会陷入到 M-mode/Hypervisor，那么任何只在 Linux 内核里做的“指令级微优化”都很难逼近 x86 的量级；但仍可以做一些“更聪明的选择/更少的栅栏/更少的重试”。
+
+#### 5.3.1 基于 CPU 特性选择更便宜的屏障（`ZTSO` 条件化）
+
+RISC-V 若支持 `ZTSO`（更强的内存序），理论上可以将 vDSO 读 seq 的某些 `fence` 降低为更轻量的屏障（甚至仅编译器屏障），从而减少每次 `clock_gettime` 的固定开销。
+
+内核里已有 `hwprobe` 能暴露 `ZTSO`（见 `/home/zcxggmu/workspace/patch-work/linux/arch/riscv/kernel/sys_hwprobe.c` 与 vDSO 的 `__vdso_riscv_hwprobe`，见 `/home/zcxggmu/workspace/patch-work/linux/arch/riscv/kernel/vdso/hwprobe.c`）。
+
+注意：这是“理论可行”的方向，真正落地要非常谨慎，因为：
+
+- vDSO 的 seqlock 正确性依赖屏障语义，错误会导致时间回退/跳变（高风险）。
+- 需要对 `ZTSO` 的实际语义与当前 vDSO 读写序（`vdso_write_begin/end` + `vdso_read_begin/retry`）做严格证明/测试。
+
+#### 5.3.2 降低重试概率（减少读 seq 撞上写 seq 的窗口）
+
+`lib/vdso/gettimeofday.c` 的 `do_hres()` 是“读 seq -> 读 cycles -> 计算 -> retry”的结构。只要碰上内核正在更新 vVAR（seq 为奇数或 seq 变化）就会重试。
+
+可考虑从内核侧减少更新窗口或更新频率对齐（需要结合业务与 tick/nohz 行为评估），但通常属于边际收益。
+
+`do_hres()`（简化）调用流程图：
+
+```mermaid
+flowchart TD
+  A[__vdso_clock_gettime] --> B[__cvdso_clock_gettime_common]
+  B --> C{clockid 属于 HRES?}
+  C -- 是 --> D[do_hres]
+  C -- 否 --> E[do_coarse / do_aux / fallback]
+  D --> F[读取 vc->seq (等待偶数)]
+  F --> G[__arch_get_hw_counter()<br/>读硬件计数器]
+  G --> H[vdso_calc_ns / vdso_set_timespec]
+  H --> I{seq 是否变化?}
+  I -- 否 --> J[返回 0]
+  I -- 是 --> F
+```
+
+#### 5.3.3 优化 vDSO 代码生成（尺寸/分支/指令序）
+
+这类优化更像“磨指令”：
+
+- 减少不必要的分支与函数层级（更多 `__always_inline`、消除不必要的间接）
+- 确保 vDSO 关键路径的代码布局/对齐更利于 I-cache
+- 针对 RISC-V `cpu_relax()`、分支预测提示等进行微调
+
+但如果主要成本在 `CSR_TIME` 的 trap，这些优化总体只能带来 **小幅改善**。
+
+### 5.4 “纯软件”但可能带来数量级收益的方向：改用不陷入的计数器/时钟源（仍然不改硬件）
+
+这类方向仍然属于“软件改动”，但本质是：**绕开会陷入的 `time` CSR**。
+
+#### 5.4.1 在满足严格前提下，用 `CSR_CYCLE` 做 vDSO 计时
+
+如果你的平台满足以下条件（缺一不可）：
+
+- 用户态读 `cycle` 不陷入，且非常快；
+- `cycle` 在所有 hart 上同步或至少“跨核迁移不倒退”；
+- 频率稳定或可由内核可靠换算；
+
+那么可设计一个新的 `VDSO_CLOCKMODE_RISCV_CYCLE`：
+
+- `drivers/clocksource/*` 注册对应 clocksource，设置 `.vdso_clock_mode`
+- `arch/riscv/include/asm/vdso/gettimeofday.h` 里根据 `clock_mode` 选择读 `CSR_CYCLE`
+- vVAR 的 `mult/shift` 按 cycle 频率配置
+
+风险：如果 `cycle` 不满足跨核一致性或频率稳定性，时间可能倒退或漂移，这比“慢”更不可接受。
+
+#### 5.4.2 虚拟化场景：做“共享页 vclock”（避免陷入）
+
+这是 x86 的 pvclock/hvclock 路径在做的事情：把时间读变成“读共享内存页”，而不是每次陷入。
+
+RISC-V 内核当前树里已有 vDSO `__vdso_riscv_hwprobe` 和 paravirt steal-time（SBI STA），但没有直接等价于 pvclock 的 vclock。  
+如果你的 AI 算力卡环境存在虚拟化层（KVM/Hypervisor），这是最推荐的软件方向之一。
+
+## 6. 建议的进一步验证（用于把“推断”变成“定论”）
 
 在 RISC-V 机器上做 3 个小实验，基本能把根因锁死：
 
@@ -273,7 +406,7 @@ RISC-V 当前内核树里：
    - `dmesg | grep -i sbi`、检查 hypervisor/firmware 信息  
    - 在 KVM 场景，考虑 paravirt vclock 方案
 
-## 6. 附：与本报告直接相关的内核源码位置（便于你快速对照）
+## 7. 附：与本报告直接相关的内核源码位置（便于你快速对照）
 
 - RISC-V vDSO 读硬件计数器：`/home/zcxggmu/workspace/patch-work/linux/arch/riscv/include/asm/vdso/gettimeofday.h`
 - RISC-V 计时 clocksource 与 vDSO mode：`/home/zcxggmu/workspace/patch-work/linux/drivers/clocksource/timer-riscv.c`
