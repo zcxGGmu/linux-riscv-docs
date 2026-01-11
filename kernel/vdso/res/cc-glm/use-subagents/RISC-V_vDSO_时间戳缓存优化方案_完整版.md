@@ -374,21 +374,21 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd,
 
 ```mermaid
 graph TB
-    subgraph "内核态 (S-mode)"
-        Timer[Per-CPU 定时器<br/>每 1ms]
-        Update[更新函数<br/>vdso_cache_update]
-        TimeKeeper[timekeeper]
+    subgraph Kernel["内核态 S-mode"]
+        Timer["Per-CPU 定时器"]
+        Update["更新函数 vdso_cache_update"]
+        TimeKeeper["timekeeper"]
     end
 
-    subgraph "VVAR 页面 (只读映射)"
-        BaseData[基础数据<br/>vdso_time_data]
-        CacheArea[Per-CPU 缓存区<br/>vdso_cpu_timestamp[NR_CPUS]]
+    subgraph VVAR["VVAR 页面只读映射"]
+        BaseData["基础数据 vdso_time_data"]
+        CacheArea["Per-CPU 缓存区"]
     end
 
-    subgraph "用户态 (U-mode)"
-        App[应用程序]
-        LibC[glibc]
-        VDSO[vDSO: clock_gettime]
+    subgraph User["用户态 U-mode"]
+        App["应用程序"]
+        LibC["glibc"]
+        VDSO["vDSO clock_gettime"]
     end
 
     Timer --> Update
@@ -551,12 +551,12 @@ flowchart TD
     Start([Per-CPU 定时器触发]) --> GetCPU[获取当前 CPU ID]
     GetCPU --> ReadTime[读取 CSR_TIME]
     ReadTime --> CalcNS[计算 ns 时间戳]
-    CalcNS --> BeginLock[vdso_update_begin<br/>获取 seqlock]
-    BeginLock --> UpdateCache[更新 per-CPU 缓存<br/>- cycles<br/>- ns<br/>- sec<br/>- nsec]
+    CalcNS --> BeginLock[vdso_update_begin 获取 seqlock]
+    BeginLock --> UpdateCache[更新 per-CPU 缓存<br/>cycles ns sec nsec]
     UpdateCache --> UpdateCycle[记录 last_update_cycles<br/>用于新鲜度检查]
     UpdateCycle --> GenSeq[生成新的 seq 和 generation]
-    GenSeq --> EndLock[vdso_update_end<br/>释放 seqlock]
-    EndLock --> Reschedule[重新调度定时器<br/>1ms 后]
+    GenSeq --> EndLock[vdso_update_end 释放 seqlock]
+    EndLock --> Reschedule[重新调度定时器 1ms 后]
     Reschedule --> Start
 ```
 
@@ -567,17 +567,17 @@ flowchart TD
     Start([clock_gettime 调用]) --> GetCPU[获取当前 CPU ID]
     GetCPU --> ReadCacheSeq[读取缓存 seq]
     ReadCacheSeq --> CheckSeq{seq 是否有效?}
-    CheckSeq -->|否| Fallback[走慢路径<br/>读取 CSR_TIME]
+    CheckSeq -->|否| Fallback[走慢路径读取 CSR_TIME]
     CheckSeq -->|是| ReadCycle[读取当前 CYCLE CSR]
     ReadCycle --> ReadUpdateCycle[读取缓存 last_update_cycles]
     ReadUpdateCycle --> CalcDelta[计算 delta_cycles]
     CalcDelta --> CalcDeltaNS[转换为 delta_ns]
-    CalcDeltaNS --> CheckFresh{delta_ns < 阈值?}
+    CalcDeltaNS --> CheckFresh{delta_ns 小于阈值?}
     CheckFresh -->|否| Fallback
-    CheckFresh -->|是| ReadCacheData[读取缓存时间戳<br/>sec, nsec]
+    CheckFresh -->|是| ReadCacheData[读取缓存时间戳 sec nsec]
     ReadCacheData --> CheckRetry{seq 是否变化?}
     CheckRetry -->|是| Start
-    CheckRetry -->|否| UpdateStats[更新统计 hit_count++]
+    CheckRetry -->|否| UpdateStats[更新统计 hit_count]
     UpdateStats --> ReturnTime[返回时间戳]
     Fallback --> ReturnTime
 ```
@@ -1539,24 +1539,24 @@ fi
 
 ```mermaid
 graph TB
-    subgraph "用户态 (U-mode)"
-        App[应用程序]
-        LibC[glibc clock_gettime]
-        VDSO[vDSO __vdso_clock_gettime]
-        FastPath[快速路径<br/>Per-CPU 缓存]
-        SlowPath[慢路径<br/>CSR_TIME 读取]
+    subgraph User["用户态 U-mode"]
+        App["应用程序"]
+        LibC["glibc clock_gettime"]
+        VDSO["vDSO __vdso_clock_gettime"]
+        FastPath["快速路径 Per-CPU 缓存"]
+        SlowPath["慢路径 CSR_TIME 读取"]
     end
 
-    subgraph "内核态 (S-mode)"
-        Timer[Per-CPU HRTimer<br/>1ms 间隔]
-        Update[更新缓存函数]
-        TimeKeeper[timekeeper]
-        VSYSCALL[update_vsyscall]
+    subgraph Kernel["内核态 S-mode"]
+        Timer["Per-CPU HRTimer 1ms 间隔"]
+        Update["更新缓存函数"]
+        TimeKeeper["timekeeper"]
+        VSYSCALL["update_vsyscall"]
     end
 
-    subgraph "VVAR 页面"
-        BaseData[基础数据<br/>vdso_time_data]
-        Cache[Per-CPU 缓存<br/>cpu_cache[56]]
+    subgraph VVAR["VVAR 页面"]
+        BaseData["基础数据 vdso_time_data"]
+        Cache["Per-CPU 缓存 cpu_cache 56"]
     end
 
     App --> LibC
@@ -1599,22 +1599,22 @@ sequenceDiagram
         Cache-->>VDSO: seq = 偶数
         VDSO->>Cache: 读取 last_update_cycles
         VDSO->>HW: 读取当前 CYCLE
-        VDSO->>VDSO: 计算 delta < 阈值?
-        VDSO->>Cache: 读取 sec, nsec
+        VDSO->>VDSO: 计算 delta 小于阈值
+        VDSO->>Cache: 读取 sec nsec
         Cache-->>VDSO: 返回缓存值
-        VDSO-->>App: 返回时间戳（快速）
+        VDSO-->>App: 返回时间戳快速
     else 缓存未命中
-        VDSO->>VDSO: delta >= 阈值
-        VDSO->>HW: csr_read(CSR_TIME)
+        VDSO->>VDSO: delta 大于等于阈值
+        VDSO->>HW: csr_read CSR_TIME
         HW-->>VDSO: cycles
-        VDSO-->>App: 返回时间戳（慢速）
+        VDSO-->>App: 返回时间戳慢速
     end
 
-    Note over Timer,Cache: 定期更新（1ms）
+    Note over Timer,Cache: 定期更新 1ms
     Timer->>Timer: 触发回调
     Timer->>HW: 读取 CSR_TIME
     HW-->>Timer: cycles
-    Timer->>Cache: 更新缓存<br/>cycles, ns, sec
+    Timer->>Cache: 更新缓存 cycles ns sec
     Timer->>Timer: 重新调度
 ```
 
@@ -1622,7 +1622,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    subgraph "内核侧"
+    subgraph KernelSide["内核侧"]
         A[定时器触发] --> B[读取 CSR_TIME]
         B --> C[计算 ns 时间戳]
         C --> D[获取 seqlock]
@@ -1631,17 +1631,17 @@ flowchart LR
         F --> G[重新调度]
     end
 
-    subgraph "VVAR 页面"
-        H[Per-CPU 缓存数组<br/>56 CPU × 64B]
+    subgraph VVARPage["VVAR 页面"]
+        H["Per-CPU 缓存数组 56 CPU x 64B"]
     end
 
-    subgraph "用户侧"
+    subgraph UserSide["用户侧"]
         I[clock_gettime] --> J[读取 seq]
         J --> K{seq 有效?}
         K -->|否| L[读取 CSR_TIME]
         K -->|是| M[读取 CYCLE]
         M --> N[计算 delta]
-        N --> O{delta < 阈值?}
+        N --> O{delta 小于阈值?}
         O -->|否| L
         O -->|是| P[读取缓存]
         P --> Q[返回时间戳]
