@@ -201,37 +201,64 @@
 
 ---
 
-## 7. Sha / ARM FEAT_VHE
-### 7.1 功能与语义
-- **RISC-V Sha**：RVA23 定义的“增强型 Hypervisor 扩展”。它不是新增语义，而是将 H 扩展与多个配套能力**打包成强制集合**，保证虚拟化路径具备完整语义：
-  - H：基本虚拟化扩展
+## 7. Sha / ARM FEAT_VHE（重点对比）
+### 7.1 功能与语义（核心定位）
+- **RISC-V Sha**：RVA23 将 **H 扩展 + 关键配套能力**打包成“强制集合”，目的不是新增语义，而是**收敛虚拟化行为一致性**，避免 H 扩展实现“功能不齐”。  
+  Sha 典型覆盖范围（按 profile 组合要求）：
+  - H：基础虚拟化扩展（VS/HS 模式、二级页表等）
   - Ssstateen：S/HS 的 state-enable 视图
-  - Shcounterenw：可写的 hcounteren 控制
+  - Shcounterenw：可写 hcounteren
   - Shvstvala / Shtvala：guest/host trap value 语义完整
-  - Shvstvecd：VS 中断向量支持 direct 模式
+  - Shvstvecd：VS 直达向量模式
   - Shvsatpa / Shgatpa：guest 与二级地址翻译模式完整
+- **ARM FEAT_VHE**：通过引入“宿主增强视图”，使 **EL2 具备接近 EL1 的语义**，允许宿主在 EL2 直接运行大部分内核路径，从而减少陷入与上下文切换成本。  
+  VHE 的本质是**执行模型的变化**：宿主内核逻辑在 EL2“像 EL1 一样”运行，减少“guest/host 语义差异”。  
 
-### 7.2 ARM 侧对照
-- **FEAT_VHE** 通过引入“宿主增强”视图，使 EL2 具备更像 EL1 的语义，减少陷入与状态切换成本。
-- 与 Sha 不同的是：VHE 是架构级的执行模式，而 Sha 是“profile 强制组合”。
+### 7.2 设计哲学差异（结构性对比）
+| 维度 | RISC-V Sha | ARM FEAT_VHE |
+|---|---|---|
+| 形态 | Profile 强制组合（打包扩展） | 架构级执行模式（VHE） |
+| 目的 | 约束 H 扩展的“必要配套能力” | 让宿主在 EL2 具备 EL1 语义 |
+| 影响范围 | 规范一致性、特性完整性 | 运行模型、陷入频率、寄存器视图 |
+| 实现方式 | “必须支持一组子扩展” | “新增宿主模式视图/执行语义” |
 
-### 7.3 性能与实现影响
-- 两者目标一致：降低 VM exit/entry 代价，减少寄存器切换与 trap 处理开销。
-- Sha 的意义在于**统一 H 扩展配套能力**，减少实现差异导致的虚拟化行为不一致。
+### 7.3 关键能力对照（虚拟化路径）
+- **异常与 trap value**：
+  - Sha 强调 `stval/vstval/htval` 的语义完整性，减少异常信息丢失；
+  - VHE 让宿主异常处理路径更接近 EL1 的模型，减少切换与保存/恢复开销。
+- **二级地址翻译**：
+  - Sha 明确要求 `hgatp` 与 `vsatp` 模式完整，提升 guest 页表的兼容性；
+  - ARM 通过 VHE + Stage-2 翻译实现稳定的 guest 地址隔离机制。
+- **定时与计数器**：
+  - Sha 集合强调计数器访问与控制寄存器语义完整（如 hcounteren 可写）；
+  - ARM Generic Timer 与 VHE 组合，使宿主计时路径更接近“原生 EL1”。
 
-### 7.4 Linux 内核支持程度
-- RISC-V：KVM 依赖 H 扩展；Sha 提升了 trap value 与状态寄存器语义完整度，利于稳定的虚拟化栈。
-- ARM：VHE 已成为服务器/云主流特性，Linux KVM 支持成熟。
+### 7.4 性能与实现影响（虚拟化开销来源）
+- **RISC-V Sha**：
+  - 通过“强制能力集合”减少实现差异，降低因缺失特性而造成的额外陷入或仿真；
+  - 性能收益更多来自**一致性与完整性**，而不是单一硬件机制的“模式切换优化”。
+- **ARM VHE**：
+  - 通过在 EL2 运行宿主内核减少 mode switch；
+  - 直接影响系统调用、异常处理与中断路径的开销。
 
-### 7.5 生态测试方法/用例
-- **内核态**：
-  - KVM 启动 guest，检查 VM exit/entry 数量、vmexit 原因分布；
-  - 验证 guest 页表、二级地址翻译路径（hgatp）正确性。
-- **用户态**：
-  - 运行混合负载（网络/存储/编译/数据库），对比 VHE/Sha 与非 VHE/Sha 下吞吐与抖动。
+### 7.5 Linux 内核支持程度（实践落地）
+- **RISC-V**：KVM 依赖 H 扩展；Sha 的完整性要求让 KVM 在 trap value、计数器与 guest 翻译路径上更稳定。现状上，支持情况与硬件平台实现强相关。
+- **ARM**：VHE 在服务器/云生态普及度高，Linux KVM 对此支持成熟，通常可用 VHE 路径减少开销。
 
-### 7.6 差距点评
-- ARM VHE 生态成熟度与硬件普及度更高；RISC-V Sha 是 profile 定义的新整合要求，落地仍在加速中。
+### 7.6 测试方法与用例（重点建议）
+- **一致性与正确性**：
+  1) KVM 启动 guest，验证 trap 原因与 `stval/vstval/htval` 记录是否完整；
+  2) 验证 guest 地址翻译完整性（`vsatp`/`hgatp` 路径）。
+- **性能对比**：
+  1) 统计 VM exit/entry 次数、原因分布（Sha vs 无 Sha；VHE vs 非 VHE）；
+  2) 量化系统调用与中断路径延迟（宿主/guest 双侧）。
+- **压力测试**：
+  - IO 密集（网络/存储）+ 计算密集混合负载，观察抖动与吞吐稳定性。
+
+### 7.7 差距点评（结论聚焦）
+1. **性质不同**：Sha 是“组合强制”，VHE 是“执行模型革新”；前者提升一致性，后者直接优化开销。
+2. **成熟度**：ARM VHE 已形成规模化生态实践；RISC-V Sha 仍处于“硬件能力逐步收敛”的推进期。
+3. **收益来源**：VHE 的收益更“显性”（减少 mode switch），Sha 的收益更“间接”（减少实现差异导致的虚拟化损耗）。
 
 ---
 
@@ -305,4 +332,3 @@
 - RVA23 Profiles v1.0 (2024-10-17) — 本地文件：`/home/zq/work-space/repo/patch-work/linux-riscv-docs/docs/spec/rva23-profile.pdf`
 - 相关扩展规范：Zifencei / Sstvala / Svnapot / Ssnpm / Sstc / Sha / Ssstrict（对应官方扩展规范与 RISC-V ISA 手册）
 - Linux RISC-V/arm64 ABI 文档（icache flush、tagged address 等相关能力）
-
