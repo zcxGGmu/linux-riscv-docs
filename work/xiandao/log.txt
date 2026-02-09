@@ -1,0 +1,617 @@
+riscv/iommu: hpm&nested and irqbypass support
+
+项目细节见: https://github.com/zcxGGmu/RISC-V-IOMMU-HPM-Nested
+
+任务分类:
+- 基于openEuler/OLK-6.6 (rvck-olk) 的移植工作
+- 针对RISC-V IOMMU HPM/Nested的测试方案
+- RISC-V IOMMU/AIA完善优化
+
+---
+交付形式:
+- 代码
+> 自行fork [移植基准仓库](https://github.com/RVCK-Project/rvck-olk) 和 [linux主线](https://github.com/torvalds/linux) 进行开发，前者用于移植工作，后者用于优化工作
+- 开发文档
+> fork [当前仓库](https://github.com/zcxGGmu/RISC-V-IOMMU-HPM-Nested)，并在顶层创建 work 文件夹，移植与测试用一个开发文档，内核优化用一个开发文档。
+
+
+---
+bpf, riscv: Support Exceptions
+
+https://lore.kernel.org/all/20240201125225.72796-1-puranjay12@gmail.com/
+
+Kumar 正在为 BPF 添加异常支持，并在 x86 上启用 [1]。
+我正在与他合作，在 ARM64 上启用该功能，并将在基本的异常支持合并到上游后，继续在其他架构上实现。
+
+[1] https://lore.kernel.org/bpf/20230912233214.1518551-1-memxor@gmail.com/
+
+为 ARM64 的 JIT 实现 `arch_bpf_stack_walk()`。这将被 `bpf_throw()` 用于展开栈，直到标记为异常边界（exception boundary）的程序，并使用主程序的栈运行回调函数。
+
+程序的 prologue（序言代码）生成部分已被修改，使得回调程序能够使用标记为异常边界的程序的栈，在此栈中已压入了被调用者保存的寄存器（callee-saved registers）。
+
+由于 `bpf_throw` 函数不会返回，如果它破坏了任何被调用者保存的寄存器，则这些寄存器会一直保持被破坏的状态。因此，异常边界程序的 prologue 被修改为同时压入 R23 和 R24 寄存器，而回调函数将在其 epilogue（尾声代码）中恢复它们。
+
+《Arm 64 位架构的过程调用标准》[1] 指出，寄存器 r19 到 r28 应由被调用者保存。ARM64 上的 BPF 程序已经保存了所有被调用者保存的寄存器，除了 r23 和 r24。此补丁在程序的 prologue 中添加了一条指令以保存这两个寄存器，并在 epilogue 中添加了一条指令以恢复它们。
+
+只有在使用 `bpf_throw()` 时才会添加这些额外的指令。否则，发出的 prologue/epilogue 将保持不变。
+
+[1] https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst
+
+---
+unwind, riscv: add sframe unwinder for kernel
+
+https://lore.kernel.org/live-patching/20250127213310.2496133-1-wnliu@google.com/
+
+本补丁集实现了一个基于 sframe 的通用内核栈展开器（unwinder）。主要目标是为 arm64 提供可靠的堆栈跟踪功能。
+
+在 x86 架构上，orc 栈展开器能够提供可靠的堆栈跟踪。但在 arm64 上，objtool 缺乏必要的支持，无法生成适用于 arm64 的 orc 展开表。
+
+目前，已经有一个针对用户空间的 sframe 栈展开器提案 [2]。由于 sframe 展开表的算法类似，这两个提案在未来可以整合共同的功能。
+
+当前仍存在一些不完整功能或挑战：
+- 当前的展开器还不能处理内核模块。来自内核模块的 FRE 的 `start_addr` 显示不正确，导致我们无法展开内核模块中的函数。
+- 目前只有 GCC 支持 sframe。
+
+参考资料：
+[1]: https://sourceware.org/binutils/docs/sframe-spec.html  
+[2]: https://lore.kernel.org/lkml/cover.1730150953.git.jpoimboe@kernel.org/
+
+---
+Support of Virtual CPU Hotplug for ARMv8 Arch
+
+https://lore.kernel.org/all/20241015100012.254223-1-salil.mehta@huawei.com/
+
+# 概要
+============
+本补丁集为 QEMU 中的 ARMv8 架构引入了虚拟 CPU 热插拔支持。其理念是在不重启 guest VM 的情况下，能够动态地热插拔和热移除 vCPUs。此功能*并不*假设主机系统中物理 CPU 热插拔的可用性，而是尝试在虚拟化层/QEMU 层解决该问题。它引入了 ACPI CPU 热插拔钩子和事件处理机制，以与 guest 内核进行接口，并添加了初始化、插入和移除 CPU 的代码。除了用户空间/Qemu 中对 hypercall 退出处理的支持（最近已加入内核）外，不需要对主机内核/KVM 进行任何更改。James Morse (ARM) 在邮件列表中发布了相应的 guest 内核更改 [3] [4]，这些更改最近已被接受并已成为 v6.11 主线内核的一部分。
+
+## 动机
+================
+这使得可以按需扩展 guest VM 的计算能力，在以下示例场景中有用：
+1. 云中的垂直 Pod 自动扩展 [9][10]：作为编排框架的一部分，可以根据使用情况调整 pod 中容器的资源请求（CPU 和内存请求）。
+2. 按需增长业务模型：基础设施提供商可根据 SLA（服务等级协议）分配并限制 guest VM 可用的总计算资源数量。VM 所有者可付费请求更多计算资源进行热插拔。
+
+例如，Kata Container VM 一开始只分配最小量的资源（即采用热插拔一切的方式）。原因？
+1. 允许更快的 *启动时间*
+2. 减少 *内存占用*
+
+Kata Container VM 可以仅用 1 个 vCPU 启动，之后根据需要再热插拔更多的 vCPU。一般来说，减少 VM 中的 vCPU 数量可以在核心数增加时显著减少 VM 的启动时间。
+
+**[即将推出]**
+我正在利用此补丁集中提出的热插拔基础设施来增强 ARM/VM 的启动时间。敬请期待接下来的补丁，它们将利用此基础设施显著减少 *非热插拔* 场景下的启动时间。预计在接下来的几周内发布更新！
+
+## 术语
+================
+(*) 可能的 CPUs：VM 中可能存在的最大 vCPU 数量。包括任何冷启动的 CPUs 以及之后可以热插拔的 CPUs。
+                   - Qemu 参数 (-smp maxcpus=N)
+(*) 当前的 CPUs：ACPI 标记为 'present' 的可能 CPUs。这些可能或未被标记为 ACPI 'enabled'。
+                   - 当前的 vCPUs = 可能的 vCPUs（在 ARM 架构上始终如此）
+(*) 已启用的 CPUs：ACPI 标记为 'present' 和 'enabled' 的可能 CPUs，现在可以被 Guest Kernel 使用（PSCI 上线）。
+                   - Qemu 参数 (-smp cpus=N)。可用于指定 VM 初始化期间的一些冷启动 vCPUs。也可以通过 '-device' 选项添加一些。
+
+## 由于 ARMv8 CPU 架构的限制 [+] 其他障碍
+===================================================================
+A. 物理层面支持 CPU 热插拔的限制：（架构约束）
+   1. ARMv8 CPU 架构不支持物理 CPU 热插拔的概念。
+      a. 存在许多每个 CPU 组件（如 PMU、SVE、MTE、架构定时器等），当 CPU 被热插拔时，其行为需要明确定义。对此没有规范。
+   2. 其他 ARM 组件（如 GIC 等）目前也未设计用于实现物理 CPU 热插拔功能。例如，
+      a. 每个物理 CPU 都有一个唯一的 GICC（GIC CPU 接口）。架构并未规定 CPU 热插拔在此类组件上下文中的含义。
+      b. CPU/GICC 实际上是连接到唯一的 GICR（GIC 分发器）的。GIC 分发器始终属于始终开启的电源域。因此，根据规范，它们无法被关闭。
+B. 固件/ACPI 中的障碍（架构约束）
+   1. 固件必须向 OS 暴露 GICC、GICR 和其他每 CPU 功能（如 PMU、SVE、MTE、架构定时器等）。由于第 A1(a) 节所述的架构约束，所有描述 GIC CPU 接口和 GIC 分发器的 MADT 中断控制器结构必须在启动时由固件提供给 OSPM。
+   2. 支持 CPU 热插拔的架构可以通过评估 ACPI _MAT 方法在启动后从固件获取此类信息，并且 OSPM 具备处理这些信息的能力。ARM 内核使用 MADT 中中断控制器结构中的信息在启动时识别当前的 CPU 数量，因此不允许在启动后更改这些信息。当前的 CPU 数量不能更改。这是一个架构约束！
+C. KVM 支持虚拟 CPU 热插拔的障碍（架构约束）
+   1. KVM VGIC:
+      a. 与重分发器相关的各种 VGIC 资源（如内存区域等）的大小仅在 VM 初始化时一次性确定，之后无法更改。
+         KVM 基于 vCPU 的数量和重分发器范围的数量/大小静态配置这些资源。
+      b. vCPU 与其 VGIC 重分发器之间的关联在 VM 初始化时固定在 KVM 中，即当重分发器 iodevs 注册时。VGIC 不允许在 VM 初始化之后设置或更改这种关联。物理上，每个 CPU/GICC 都与它的重分发器唯一连接，并且没有架构上的方法可以设置这一点。
+   2. KVM vCPUs:
+      a. 缺乏规范意味着 KVM vCPUs 的销毁不存在，因为没有参考说明如何处理其他每 vCPU 组件（如重分发器、架构定时器等）。
+      b. 实际上，KVM 并未为任何架构实现 vCPUs 的销毁。这与架构是否实际支持 CPU 热插拔无关。例如，即使是 x86 KVM 也不实现 vCPUs 的销毁。
+D. Qemu 支持虚拟 CPU 热插拔的障碍（KVM 约束->架构）
+   1. 必须创建 Qemu CPU 对象以初始化所有 Host KVM vCPUs，以克服 KVM 约束。KVM vCPUs 是在 Qemu CPU 对象实现时创建和初始化的。但是，为“尚未插入”的 vCPUs 保留 QOM CPU 对象可能会在使用 device_add 插入新 vCPUs 并创建新的 QOM CPU 对象时引发问题。
+   2. GICV3State 和 GICV3CPUState 对象必须在 VM 初始化时基于 *可能的 vCPUs* 大小进行配置，此时 QOM GICV3 对象实现。这是因为 KVM VGIC 只能在初始化时一次性初始化。但每个 GICV3CPUState 都有一个关联的 QOM CPU 对象。之后可能对应的是“尚未插入”（初始化时未插入）的 vCPUs。
+   3. 如何将新的 QOM CPU 对象重新连接回 GICV3CPUState 对象，并在 CPU 被热插拔时断开连接？
+   4. 如何在 QOM 中表示“未插入”或“尚未插入”的 vCPUs？对于已经存在 KVM vCPU 的情况，例如是否保留：
+       a. 没有 QOM CPU 对象 或
+       b. 未实现的 CPU 对象
+   5. 如何通过 ACPI 将 vCPU 状态暴露给 Guest？尤其是那些在 QOM 中可能不存在的“未插入”或“尚未插入”的 vCPUs，而 Guest 总是期望所有可能的 vCPUs 在启动时都被标识为 ACPI *present*。
+   6. 如何通过 ACPI MADT 表向 Guest 暴露 GIC CPU 接口，针对“未插入”或“尚未插入”的 vCPUs？
+E. 方法总结 ([+] A, B, C & D 节中问题的变通方案)
+   1. 在 VM 初始化时，预先创建所有可能的 Host KVM vCPUs，即使这些 vCPUs 尚未在 Qemu 中插入，也保持它们处于关机状态。
+   2. 在 Host 中初始化 KVM vCPUs 之后，对应于“未插入”或“尚未插入”的 vCPUs 的 KVM vCPU 对象会被挂起到现有的 per-VM "kvm_parked_vcpus" 列表中。（类似 x86）
+   3. GICV3State 和 GICV3CPUState 对象在 VM 初始化时基于可能的 vCPUs 进行配置，即当 Qemu GIC 实现时。这反过来会基于可能的 KVM vCPUs 数量调整 KVM VGIC 资源（如内存区域等）的大小。VM 初始化后，这一数值不会改变。
+   4. 对应于“未插入”或“尚未插入”的 vCPUs 的 Qemu CPU 对象在 Host KVM CPU 和 GIC/VGIC 初始化后释放。
+   5. 构建 ACPI MADT 表时包含以下更新：
+      a. GIC CPU 接口条目数量 (=可能的 vCPUs)
+      b. 将启动 vCPU 标记为 MADT.GICC.Enabled=1（不可热插拔）
+      c. 将可热插拔的 vCPUs 标记为 MADT.GICC.online-capable=1  
+         - MADT.GICC.Enabled=0（互斥）[6][7]
+	 - Guest 启动后可通过 ACPI 启用+上线 vCPU（固件策略）
+	 - 与上述相关的问题（详情见后续章节）
+   6. 向 Guest 内核暴露以下 ACPI 状态：
+      a. Always _STA.Present=1（所有可能的 vCPUs）
+      b. _STA.Enabled=1（已插入的 vCPUs）
+      c. _STA.Enabled=0（未插入的 vCPUs）
+   7. vCPU 热插拔 *实现* 新的 QOM CPU 对象。以下会发生：
+      a. 实现、初始化 QOM CPU 对象并生成 Qemu vCPU 线程。
+      b. 从现有的 "kvm_parked_vcpus" 列表中取消挂起 KVM vCPU。
+         - 附加到 QOM CPU 对象。
+      c. 在 Host 中重新初始化 KVM vCPU。
+         - 重置核心和系统寄存器，设置默认值等。
+      d. 运行 KVM vCPU（使用 "start-powered-off" 创建）。
+	 - vCPU 线程休眠（等待通过 PSCI 的 vCPU 重置）。
+      e. 更新 Qemu GIC。
+         - 重新连接与此 vCPU 相关的 IRQ。
+         - GICV3CPUState 与 QOM CPU 对象的关联。
+      f. 更新 [6] ACPI _STA.Enabled=1。
+      g. 通知 Guest 新的 vCPU（通过 ACPI GED 接口）。
+	 - Guest 检查 _STA.Enabled=1。
+	 - Guest 添加处理器（向 LDM 注册 CPU）[3]。
+      h. 在插槽中插入 QOM CPU 对象。
+         - slot-number = cpu-index {socket, cluster, core, thread}。
+      i. Guest 上线 vCPU（通过 HVC/SMC 的 CPU_ON PSCI 调用）。
+         - KVM 退出 HVC/SMC Hypercall [5] 到 Qemu（策略检查）。
+         - Qemu 在 Host 中启动 KVM vCPU。
+   8. vCPU 热移除 *取消实现* QOM CPU 对象。以下会发生：
+      a. 通过 ACPI GED 接口通知 Guest vCPU 热移除事件。
+         - Guest 下线 vCPU（通过 HVC/SMC 的 CPU_OFF PSCI 调用）。
+      b. KVM 退出 HVC/SMC Hypercall [5] 到 Qemu（策略检查）。
+         - Qemu 在 Host 中关闭 KVM vCPU。
+      c. Guest 向 Qemu 发送 *弹出* vCPU 的信号。
+      d. Qemu 更新 [6] ACPI _STA.Enabled=0。
+      e. 更新 GIC。
+         - 断开与此 vCPU 相关的 IRQ。
+         - GICV3CPUState 与新的 QOM CPU 对象的关联得到更新。
+      f. 移除 vCPU。
+	 - 从插槽中移除。
+         - 挂起 KVM vCPU ("kvm_parked_vcpus" 列表)。
+         - 取消实现 QOM CPU 对象并合并 Qemu vCPU 线程。
+	 - 销毁 QOM CPU 对象。
+      g. Guest 检查 ACPI _STA.Enabled=0。
+         - 移除处理器（从 LDM 注销 CPU）[3]。
+F. 在 KVM 论坛会议中展示的工作：
+==========================================
+以上工作的详细内容已在 KVMForum2020 和 KVMForum2023 会议上展示。幻灯片和视频可在以下链接获取：
+a. KVMForum 2023
+   - 在不支持 CPU 热插拔的架构上支持 Virt CPU 热插拔所面临的挑战回顾（如 ARM64）。
+     https://kvm-forum.qemu.org/2023/KVM-forum-cpu-hotplug_7OJ1YyJ.pdf
+     https://kvm-forum.qemu.org/2023/Challenges_Revisited_in_Supporting_Virt_CPU_Hotplug_-__ii0iNb3.pdf
+     https://www.youtube.com/watch?v=hyrw4j2D6I0&t=23970s
+     https://kvm-forum.qemu.org/2023/talk/9SMPDQ/
+b. KVMForum 2020
+   - 在基于 SoC 的系统上支持虚拟 CPU 热插拔的挑战（如 ARM64）- Salil Mehta，华为。
+     https://kvmforum2020.sched.com/event/eE4m
+     
+
+
+
+# before
+---
+
+root@Ubuntu-riscv64:~/repo/kvm# ./memslot_perf_test 
+Random seed: 0x6b8b4567
+Testing map performance with 1 runs, 5 seconds each
+Memslot count too high for this test, decrease the cap (max is 8209)
+
+Testing unmap performance with 1 runs, 5 seconds each
+Test took 21.205076818s for slot setup + 15.641792656s all iterations
+Done 1 iterations, avg 15.641792656s each
+Best runtime result was 15.641792656s per iteration (with 1 iterations)
+
+Testing unmap chunked performance with 1 runs, 5 seconds each
+Test took 22.570215321s for slot setup + 16.032879401s all iterations
+Done 1 iterations, avg 16.032879401s each
+Best runtime result was 16.032879401s per iteration (with 1 iterations)
+
+Testing move active area performance with 1 runs, 5 seconds each
+Test took 21.487109664s for slot setup + 5.007168232s all iterations
+Done 717 iterations, avg 0.006983498s each
+Best runtime result was 0.006983498s per iteration (with 717 iterations)
+
+Testing move inactive area performance with 1 runs, 5 seconds each
+Test took 22.747851104s for slot setup + 5.024175100s all iterations
+Done 146 iterations, avg 0.034412158s each
+Best runtime result was 0.034412158s per iteration (with 146 iterations)
+
+---
+
+root@Ubuntu-riscv64:~/repo/kvm# ./memslot_perf_test 
+Random seed: 0x6b8b4567
+Testing map performance with 1 runs, 5 seconds each
+Memslot count too high for this test, decrease the cap (max is 8209)
+
+Testing unmap performance with 1 runs, 5 seconds each
+Test took 22.066499841s for slot setup + 17.677237464s all iterations
+Done 1 iterations, avg 17.677237464s each
+Best runtime result was 17.677237464s per iteration (with 1 iterations)
+
+Testing unmap chunked performance with 1 runs, 5 seconds each
+Test took 24.212600900s for slot setup + 17.921813923s all iterations
+Done 1 iterations, avg 17.921813923s each
+Best runtime result was 17.921813923s per iteration (with 1 iterations)
+
+Testing move active area performance with 1 runs, 5 seconds each
+Test took 23.191738657s for slot setup + 5.020011846s all iterations
+Done 706 iterations, avg 0.007110498s each
+Best runtime result was 0.007110498s per iteration (with 706 iterations)
+
+Testing move inactive area performance with 1 runs, 5 seconds each
+Test took 25.176475825s for slot setup + 5.003838244s all iterations
+Done 142 iterations, avg 0.035238297s each
+Best runtime result was 0.035238297s per iteration (with 142 iterations)
+
+---
+root@Ubuntu-riscv64:~/repo/kvm# ./memslot_perf_test 
+Random seed: 0x6b8b4567
+Testing map performance with 1 runs, 5 seconds each
+Memslot count too high for this test, decrease the cap (max is 8209)
+
+Testing unmap performance with 1 runs, 5 seconds each
+Test took 27.661364852s for slot setup + 17.963043824s all iterations
+Done 1 iterations, avg 17.963043824s each
+Best runtime result was 17.963043824s per iteration (with 1 iterations)
+
+Testing unmap chunked performance with 1 runs, 5 seconds each
+Test took 24.777301543s for slot setup + 16.897584827s all iterations
+Done 1 iterations, avg 16.897584827s each
+Best runtime result was 16.897584827s per iteration (with 1 iterations)
+
+Testing move active area performance with 1 runs, 5 seconds each
+Test took 24.091268068s for slot setup + 5.012589701s all iterations
+Done 698 iterations, avg 0.007181360s each
+Best runtime result was 0.007181360s per iteration (with 698 iterations)
+
+Testing move inactive area performance with 1 runs, 5 seconds each
+Test took 24.033690143s for slot setup + 5.020174717s all iterations
+Done 146 iterations, avg 0.034384758s each
+Best runtime result was 0.034384758s per iteration (with 146 iterations)
+
+===>
+`patch-work` 16个
+
+--- KVM/riscv changes for 6.17 世界第二，仅次于`ventana` (4)
+Quan Zhou (4):
+      RISC-V: KVM: Enable ring-based dirty memory tracking
+      RISC-V: perf/kvm: Add reporting of interrupt events
+      RISC-V: KVM: Use find_vma_intersection() to search for intersecting VMAs
+      RISC-V: KVM: Avoid re-acquiring memslot in kvm_riscv_gstage_map()
+
+--- (6)
+[PATCH v2 0/6] RISC-V: KVM: Allow zicbop/bfloat16 exts for guests
+
+--- (6)
+RISC-V: KVM: Correct kvm_riscv_check_vcpu_requests() comment
+KVM: loongarch: selftests: Remove common tests built by TEST_GEN_PROGS_COMMON
+iommufd: fix returns ENOENT in iommufd_viommu_get_vdev_id()
+[PATCH v2 0/3] KVM: riscv: selftests: Enable supported test cases
+
+
+
+https://www.beijing.gov.cn/ywdt/gzdt/202501/t20250103_3980799.html
+https://kxjsj.chengde.gov.cn/art/2025/6/9/art_13030_1070365.html
+亦庄将实施“瞭望计划”攻坚行动
+北京亦庄将聚焦全球领先的RISC-V产业生态中心，通过开放‘十大场景’，开展‘五大行动’，形成‘百项’成果。到2030年，实现产业规模超过500亿元。形成RISC-V前沿创新活跃、技术竞争力强、特色生态突出的产业体系，将北京亦庄打造成为具有全球影响力的RISC-V前沿技术突破地、专业资源集聚地及重大创新策源地。
+北京经开区企业算能联合雄安安算技术有限公司近日发布了基于RISC-V架构的DeepSeek一体机——昊辰2524A。该产品搭载算能自研的服务器级RISC-V处理器SG2042，面向AI大模型应用场景进行了深度定制，标志着RISC-V在国产高性能服务器领域的生态合作持续扩展，落地进程加速。
+
+https://www.c114.com.cn/news/80/a1292484.html
+北京市发布首个6G产业专项政策：支持核心芯片器件研发，探索RISC-V技术路线
+北京市在《6G产业专项政策》中明确提出，支持核心芯片研发并探索基于RISC-V的技术路线
+
+---
+
+perf测试
+1) 编译构建
+https://github.com/zcxGGmu/linux-riscv-docs/blob/main/scripts/riscv-kvm-env-build.md#23-ssh-with-qemu-host
+内核配置:
+CONFIG_LIBTRACEEVENT
+CONFIG_DWARF
+CONFIG_LIBDW_DWARF_UNWIND
+CONFIG_GUEST_PERF_EVENTS
+perf编译:
+cd ./repo/linux/tools/perf
+make VF=1 NO_LIBBPF=1 LDFLAGS=-static -j8
+make VF=1 NO_LIBBPF=1 NO_JEVENTS=1 LDFLAGS=-static -j8
+
+2) 测试
+a. perf stat采集异常事件
+./perf kvm record -e "kvm:kvm_entry" -e "kvm:kvm_exit"
+./perf kvm report
+./perf kvm stat record -a
+./perf kvm stat report --event=vmexit
+
+b. perf 查看虚拟机函数调用情况
+https://lore.kernel.org/all/cover.1728980031.git.zhouquan@iscas.ac.cn/
+
+在qemu环境中启动一台kvm虚拟机，在宿主机上执行以下命令：
+---
+ssh guest  "cat /proc/kallsyms" > /tmp/guest.kallsyms
+ssh guest  "cat /proc/modules" > /tmp/guest.modules
+
+./perf kvm --host --guest --guestkallsyms=/root/repo/shared/kallsyms --guestmodules=/root/repo/shared/modules top
+./perf kvm --host --guest --guestkallsyms=/root/repo/shared/kallsyms --guestmodules=/root/repo/shared/modules record -a sleep 10
+./perf kvm --host --guest \
+  --guestkallsyms=/<path-to-kallsyms> \
+  --guestmodules=/<path-to-modules> record -a sleep 60
+
+==========================================>>>>>>>
+
+# after
+先炳羽：14 * 200 = 2800
+陈昱航：15 * 250 = 3750
+吴迪：24 * 250 = 6000
+杨董：20 * 200 = 4000
+
+先炳羽：14
+陈昱航：15
+吴迪：24
+杨董：20
+
+
+先炳羽、陈昱航、吴迪
+杨董：14 * 200 = 2800
+
+
+zcxGGmu.github.io
+
+git submodule add git@github.com:zcxGGmu/hexo-theme-next.git themes/next
+
+
+openEuler: 36.8% https://www.sohu.com/a/915161595_121717382
+OpenCloudOS: 
+OpenAnolis:
+麒麟:
+统信:
+https://www.hangyan.co/charts/3587978104565401141
+CentOS/红帽的 20.7%、Windows 的 19.3%、Ubuntu/Debian 的 10.1%
+https://www.21jingji.com/article/20231222/herald/bef67179ca30d9b7fc76e00dfcec6f0a.html
+
+---
+
+---
+请详细分析 /home/zq/work-space/repo/ai-projs/llm-agent/trading/trade/nofx 这个项目，梳理项目架构，并仔细拆解功能模块，在当前路径下生成一个分析报告 md 格式文档
+
+---
+我要把上述提示词给codex，请帮我优化一下，让他能帮我更好的分析项目
+
+/home/zq/work-space/repo/ai-projs/llm-agent/trading/trade/TradingAgents-CN
+/home/zq/work-space/repo/ai-projs/llm-agent/trading/trade/nofx
+你现在是一名资深高级软件架构师。请深度分析路径为 /home/zq/work-space/repo/ai-projs/llm-agent/trading/trade/nofx 的项目代码，并在当前路径下编写一份详尽的 Markdown 格式技术分析报告
+
+综合上述 nofx 和 TradingAgents-CN 两个项目，如何结合两者，开发一个项目用于分析、交易 a、港股，而不是加密货币，请在当前路径下生成一份详细的 md 格式方案
+
+# after
+先炳羽：15 * 200 = 3000
+陈昱航：14 * 250 = 3500
+吴迪：14 * 250 = 3500
+杨董：15 * 200 = 3000
+
+实习生出勤时间（01.13-02.05）:
+先炳羽：15
+陈昱航：14
+吴迪：14
+杨董：15
+
+
+1、打听下，竞选sig组，到时候需要准备个答辩ppt吗
+2、你当时多少人竞选，很激烈吗
+3、平时必须参会吧，事情很多吗
+
+
+===> cc-agent-teams/docs
+
+请使用 agent teams 帮我完成以下任务：
+请严格参考 `/home/zq/Desktop/实施材料-服务器/22.12/01_需求规格说明书-22.12-20221201-84p.pdf` 的格式和内容。帮我完善 `01_需求规格说明书-3.0.docx` 的内容（注意每章只需要关注`基础库适配与优化`和`服务器语言运行时环境支持`即可）
+
+
+
+请按照如下目录结构，完善 `01_需求规格说明书-3.0.docx` 的内容：
+
+一、 简介	
+1.1 概述	
+1.2 术语与定义	
+1.3 需求目标	
+二、 功能需求综述
+2.1 基础库适配与优化
+2.1.1 OpenCV
+2.1.2 OpenSSL
+2.1.3 OpenBLAS
+2.2 服务器语言运行时环境支持
+2.2.1 Java
+2.2.2 Rust
+2.2.3 JavaScript
+三、 详细功能需求
+3.1 基础库适配与优化
+3.1.1 OpenCV
+3.1.2 OpenSSL
+3.1.3 OpenBLAS
+3.2 服务器语言运行时环境支持
+3.2.1 Java
+3.2.2 Rust
+3.3.3 JavaScript
+四、非功能需求
+4.1 基础库适配与优化
+4.1.1 OpenCV
+4.1.2 OpenSSL
+4.1.3 OpenBLAS
+4.2 服务器语言运行时环境支持
+4.2.1 Java
+4.2.2 Rust
+4.2.3 JavaScript
+五、 约束要求
+5.1 基础库适配与优化
+5.1.1 OpenCV
+5.1.2 OpenSSL
+5.1.3 OpenBLAS
+5.2 服务器语言运行时环境支持
+5.2.1 Java
+5.2.2 Rust
+5.2.3 JavaScript
+
+===
+
+请继续完善补充每一小节的内容，你可以参考如下材料：
+1）`/home/zq/Desktop/实施材料-服务器/Server.pdf` 的  2.3 和 3 小节
+2）网络资源
+
+
+请参考 `/home/zq/Desktop/实施材料-服务器/22.12/01_需求规格说明书-22.12-20221201-84p.pdf` 3.1.1 的表格，
+补充同样格式的表格到 `01_需求规格说明书-3.0.docx` 文档的每个小节。
+
+请继续完善每一小节内容，增加文字，整个文档需要补充至 50 页左右。注意，内容尽量不要偏移 /home/zq/Desktop/实施材料-服务器/Server.pdf
+
+===> 详细设计说明书
+请按照如下目录结构，完善 `02_详细设计说明书-3.0.docx` 的内容：
+
+一、 文档概述
+1.1 文档目的和范围
+1.2 引用文件
+1.3 名词术语解释
+二、 模块设计
+2.1 基础库适配与优化
+2.1.1 OpenCV
+2.1.2 OpenSSL
+2.1.3 OpenBLAS
+2.2 服务器语言运行时环境支持
+2.2.1 Java
+2.2.2 Rust
+2.2.3 JavaScript
+三、 数据结构设计
+3.1 基础库适配与优化
+3.1.1 OpenCV
+3.1.2 OpenSSL
+3.1.3 OpenBLAS
+3.2 服务器语言运行时环境支持
+3.2.1 Java
+3.2.2 Rust
+3.3.3 JavaScript
+四、接口设计
+4.1 基础库适配与优化
+4.1.1 OpenCV
+4.1.2 OpenSSL
+4.1.3 OpenBLAS
+4.2 服务器语言运行时环境支持
+4.2.1 Java
+4.2.2 Rust
+4.2.3 JavaScript
+五、 运行设计
+5.1 基础库适配与优化
+5.1.1 OpenCV
+5.1.2 OpenSSL
+5.1.3 OpenBLAS
+5.2 服务器语言运行时环境支持
+5.2.1 Java
+5.2.2 Rust
+5.2.3 JavaScript
+六、 容错设计
+6.1 基础库适配与优化
+6.1.1 OpenCV
+6.1.2 OpenSSL
+6.1.3 OpenBLAS
+6.2 服务器语言运行时环境支持
+6.2.1 Java
+6.2.2 Rust
+6.2.3 JavaScript
+七、 安全设计
+7.1 基础库适配与优化
+7.1.1 OpenCV
+7.1.2 OpenSSL
+7.1.3 OpenBLAS
+7.2 服务器语言运行时环境支持
+7.2.1 Java
+7.2.2 Rust
+7.2.3 JavaScript
+
+===> 测试报告
+
+请按照如下目录结构，完善 `04_内部测试报告-3.0.docx` 的内容：
+
+一、 概述
+1.1 编写目的	
+1.2 系统/模块/任务概述
+二、 测试准备
+2.1 测试环境
+2.2 配置说明
+三、 测试方案
+3.1 测试范围
+3.2 测试依据
+3.3 测试通过标准
+3.4 测试计划
+四、测试过程
+4.1 基础库适配与优化
+4.1.1 OpenCV
+4.1.2 OpenSSL
+4.1.3 OpenBLAS
+4.2 服务器语言运行时环境支持
+4.2.1 Java
+4.2.2 Rust
+4.2.3 JavaScript
+五、 测试总结
+5.1 测试结果
+5.2 测试结论
+六、 附件清单
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
