@@ -597,9 +597,16 @@ https://www.21jingji.com/article/20231222/herald/bef67179ca30d9b7fc76e00dfcec6f0
 
 ==========> riscv_kvm_pdump
 
+1、删除所有的中文注释
+2、将 `stage2` 的英文全部替换为 `gstage`（具体见riscv特权规范 `21.5. Two-Stage Address Translation`）
+3、请添加patch封面，需要附带实际测试结果（参考https://lore.kernel.org/all/20240909124721.1672199-1-sebastianene@google.com/）
+4、补丁文件拆分成多个patch，应该为：3个patch + 1个封面
+5、同步到自己的上游仓库（fork linux）
 
 
-
+Co-developed-by: Quan Zhou <zhouquan@iscas.ac.cn>
+Signed-off-by: Quan Zhou <zhouquan@iscas.ac.cn>
+Signed-off-by: Dylan.Wu <fredwudi0305@gmail.com> 
 
 
 
