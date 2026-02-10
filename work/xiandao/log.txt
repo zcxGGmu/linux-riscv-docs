@@ -529,9 +529,44 @@ https://www.21jingji.com/article/20231222/herald/bef67179ca30d9b7fc76e00dfcec6f0
 7.2.2 Rust
 7.2.3 JavaScript
 
+请严格参考 `/home/zq/work-space/repo/patch-work/linux-riscv-docs/work/xiandao/docs/02_总体设计说明书-22.12-20221120-78p.pdf` 中各章节表格的内容格式，请在 `02_详细设计说明书-3.0.docx` 各章节的合适位置添加表格。
+
+目前的表格不正确，针对 `二～七` 章，其中的每个软件都应该设计一个单独的表格：
+比如说，OpenCV/OpenSSL/OpenBLAS/Java/Rust/JavaScript，每一章的每个小节对应的软件，都应该单独设计表格。
+
+针对 2.1.1 Opencv 的设计表，请拆分成具体 Opencv 的模块与设计项，而不是当前这样。
+同理，针对第二章的其他小节，请拆分成具体的模块与设计项，而不是当前这样。
+
+可以，但请注意三～七章的目标是不同的：
+三：数据结构设计
+四：接口设计
+五：运行设计
+六： 容错设计
+七： 安全设计
+请按照对应的目标进行合理设计，进行模块化粒度拆分（注意需要面向 riscv 架构设计）
+
+`表 1 2.1.1 OpenCV OpenCV 设计表` 请修改为 `表 1 OpenCV 模块设计表`
+类似的文档其他表格，请修改。
+
+`表 7 OpenCV 模块设计表` 应该修改为 `表 7 OpenCV 数据结构设计表`。
+其余的也是一样，名称应该对应每一章的主题。请全部修改
+
 ===> 测试报告
 
-请按照如下目录结构，完善 `04_内部测试报告-3.0.docx` 的内容：
+你是一名精通 riscv 架构基础库与运行时的工程师，请用中文和我交流。
+
+首先调整 `04_内部测试报告-3.0.docx` 第四章的内容结构为：
+四、测试过程
+4.1 基础库适配与优化
+4.1.1 OpenCV
+4.1.2 OpenSSL
+4.1.3 OpenBLAS
+4.2 服务器语言运行时环境支持
+4.2.1 Java
+4.2.2 Rust
+4.2.3 JavaScript
+
+请参考 `/home/zcxggmu/workspace/patch-work/linux-riscv-docs/work/xiandao/docs/03_详细设计说明书-22.12-20221121-57p.pdf` 第四章的结构风格，帮我优化完善 `02_详细设计说明书-3.0.docx` 的第四章内容
 
 一、 概述
 1.1 编写目的	
@@ -558,6 +593,9 @@ https://www.21jingji.com/article/20231222/herald/bef67179ca30d9b7fc76e00dfcec6f0
 5.2 测试结论
 六、 附件清单
 
+
+
+==========> riscv_kvm_pdump
 
 
 
