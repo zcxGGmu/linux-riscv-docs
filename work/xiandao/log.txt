@@ -608,7 +608,9 @@ Co-developed-by: Quan Zhou <zhouquan@iscas.ac.cn>
 Signed-off-by: Quan Zhou <zhouquan@iscas.ac.cn>
 Signed-off-by: Dylan.Wu <fredwudi0305@gmail.com> 
 
+===>>>
 
+{"id":"a4ec66de-41e9-4e3b-9e56-eea66197b56d","createdAt":"2026-02-11T08:47:35.101Z","runtimeVersion":"exposdk:51.0.0","launchAsset":{"key":"bundle","contentType":"application/javascript","url":"http://127.0.0.1:8082/App.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.bytecode=true&transform.routerRoot=app"},"assets":[],"metadata":{},"extra":{"eas":{},"expoClient":{"name":"Todo App","slug":"todo-app","version":"1.0.0","orientation":"portrait","icon":"./src/assets/icon.png","userInterfaceStyle":"light","splash":{"image":"./src/assets/splash.png","resizeMode":"contain","backgroundColor":"#ffffff"},"assetBundlePatterns":["**/*"],"ios":{"supportsTablet":true,"bundleIdentifier":"com.example.todoapp"},"android":{"adaptiveIcon":{"foregroundImage":"./src/assets/adaptive-icon.png","backgroundColor":"#ffffff"},"package":"com.example.todoapp"},"web":{"favicon":"./src/assets/favicon.png"},"_internal":{"isDebug":false,"projectRoot":"/home/zq/work-space/claude-test/todo-app","dynamicConfigPath":null,"staticConfigPath":"/home/zq/work-space/claude-test/todo-app/app.json","packageJsonPath":"/home/zq/work-space/claude-test/todo-app/package.json"},"sdkVersion":"51.0.0","platforms":["ios","android"],"hostUri":"127.0.0.1:8082"},"expoGo":{"debuggerHost":"127.0.0.1:8082","developer":{"tool":"expo-cli","projectRoot":"/home/zq/work-space/claude-test/todo-app"},"packagerOpts":{"dev":true},"mainModuleName":"App","__flipperHack":"React Native packager is running"},"scopeKey":"@anonymous/todo-app-27eee5f7-c935-4c86-8b6a-4e1d4d343c0e"}}
 
 
 
