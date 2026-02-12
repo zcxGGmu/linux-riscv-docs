@@ -609,30 +609,62 @@ Signed-off-by: Quan Zhou <zhouquan@iscas.ac.cn>
 Signed-off-by: Dylan.Wu <fredwudi0305@gmail.com> 
 
 ===>>>
+I am Zhou Quan, a System Software Engineer at the Institute of Software, Chinese Academy of Sciences, specializing in operating systems and virtualization technologies. My work focuses on developing and optimizing Linux kernel and KVM virtualization features for the RISC-V architecture, including platform adaptation and performance tuning for Lanxin and ESWIN hardware. I actively contribute to the upstream Linux/KVM community, with over 30 patches merged—primarily in virtualization subsystems such as native guest instruction set support, CPU/MMU performance acceleration, performance monitoring infrastructure, and comprehensive feature validation. Through these efforts, I aim to advance the maturity and efficiency of open-source virtualization stacks on emerging architectures.
 
-{"id":"a4ec66de-41e9-4e3b-9e56-eea66197b56d","createdAt":"2026-02-11T08:47:35.101Z","runtimeVersion":"exposdk:51.0.0","launchAsset":{"key":"bundle","contentType":"application/javascript","url":"http://127.0.0.1:8082/App.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.bytecode=true&transform.routerRoot=app"},"assets":[],"metadata":{},"extra":{"eas":{},"expoClient":{"name":"Todo App","slug":"todo-app","version":"1.0.0","orientation":"portrait","icon":"./src/assets/icon.png","userInterfaceStyle":"light","splash":{"image":"./src/assets/splash.png","resizeMode":"contain","backgroundColor":"#ffffff"},"assetBundlePatterns":["**/*"],"ios":{"supportsTablet":true,"bundleIdentifier":"com.example.todoapp"},"android":{"adaptiveIcon":{"foregroundImage":"./src/assets/adaptive-icon.png","backgroundColor":"#ffffff"},"package":"com.example.todoapp"},"web":{"favicon":"./src/assets/favicon.png"},"_internal":{"isDebug":false,"projectRoot":"/home/zq/work-space/claude-test/todo-app","dynamicConfigPath":null,"staticConfigPath":"/home/zq/work-space/claude-test/todo-app/app.json","packageJsonPath":"/home/zq/work-space/claude-test/todo-app/package.json"},"sdkVersion":"51.0.0","platforms":["ios","android"],"hostUri":"127.0.0.1:8082"},"expoGo":{"debuggerHost":"127.0.0.1:8082","developer":{"tool":"expo-cli","projectRoot":"/home/zq/work-space/claude-test/todo-app"},"packagerOpts":{"dev":true},"mainModuleName":"App","__flipperHack":"React Native packager is running"},"scopeKey":"@anonymous/todo-app-27eee5f7-c935-4c86-8b6a-4e1d4d343c0e"}}
+I am currently conducting performance and functional evaluations and comparisons of RISC-V and ARM instruction set support within data center ecosystems. I am interested in contributing to the following areas:
+
+1. Assisting the chair with meeting-related tasks and coordination;
+2. Evaluating and refining RISC-V instruction set architecture specifications;
+3. Adapting and enhancing RISC-V software infrastructure to improve ecosystem maturity.
+
+===>> ztso
+
+1) 
+
+===>> riscv/arm 指令集生态评估方案
+
+你是一名精通riscv/arm架构的专家，请用中文和我进行交流
+
+注意，以下工作请启用 agent teams 来完成：
+
+```
+Zifencei / ARM ISB - 指令同步屏障
+Sstvala / ARM FAR - 故障地址寄存器
+Svnapot - NAPOT 页转换扩展
+Ssnpm - 监管器级指针屏蔽
+Sstc / ARM Generic Timer - 定时器扩展
+H-扩展 / ARM FEAT_VHE - 虚拟化支持
+Ssstrict - 严格执行扩展
+```
+
+---
+
+请针对以上 riscv/arm 的指令集，深入分析并完成两个方面的内容（参考 riscv-arm-instruction-comparison.md）：
+
+1) 首先进行 riscv/arm 的指令集的功能特性对比，这部分主要参考硬件规范。
+2）除了 Sstvala/Ssstrict 以外，针对其余的指令集设计性能评估方案，请在目前的软件生态中找到权威规范的测试套件。
+
+在当前路径下生成一个 md 格式文档，要求内容详尽。
+
+---
+
+针对 riscv/arm 虚拟化性能开销的评估，有没有完全覆盖虚拟机生命周期的测试方案，请完善补充
+
+请针对 `2.2 Zifencei / ISB 性能评估`，单独写一个性能测试方案，主要评估Zifencei / ISB指令集使用场景的
+软件性能情况
 
 
+针对 riscv/arm 虚拟化性能开销的评估，基于完全覆盖虚拟机生命周期的测试方案，请单独写一个性能测试方案文档
 
+我想这么测试：在主机以及虚拟机上分别运行 spec2006测试套件，观察跑分评估虚拟化性能折损情况，从而对比riscv/arm
+架构的虚拟化性能。请根据这个思路，设计一个方案并完善文档（可附带图表进行辅助说明)
 
+  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+riscv_ztso.docx 是一篇学生的周报，请你把该文档的内容进行规划梳理，重新整理为一个 md 格式的调研文档。
+两个要求：
+1）必须保留 riscv_ztso.docx 的所有内容。
+2）删除学生相关的一切信息（包括考勤、名字等）。
 
 
 
