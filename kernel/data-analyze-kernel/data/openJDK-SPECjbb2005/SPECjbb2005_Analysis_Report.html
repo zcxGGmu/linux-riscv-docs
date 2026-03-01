@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPECjbb2005 性能分析报告</title>
+    <!-- Using BootCDN for better accessibility in China -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #38bdf8;
+
+            /* Defined Colors for Chart Consistency */
+            --arm-jdk17: #3b82f6;
+            /* Blue */
+            --arm-jdk21: #10b981;
+            /* Emerald */
+            --arm-jdk25: #8b5cf6;
+            /* Violet */
+
+            --rv-jdk17: #f59e0b;
+            /* Amber */
+            --rv-jdk21: #ec4899;
+            /* Pink */
+            --rv-jdk25: #ef4444;
+            /* Red */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background-color: #0f172a !important;
+            /* Force dark background */
+            color: #f1f5f9;
+            line-height: 1.6;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #334155;
+            break-inside: avoid;
+            /* Prevent printing cuts */
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .arch-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 2rem;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+        }
+
+        .arch-header {
+            text-align: center;
+            border-right: 1px solid #334155;
+            padding-right: 2rem;
+        }
+
+        .arch-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            display: block;
+        }
+
+        .arch-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-boxes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            border-top: 3px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Box borders matching the chart colors */
+        .stat-box.arm-17 {
+            border-color: var(--arm-jdk17);
+        }
+
+        .stat-box.arm-21 {
+            border-color: var(--arm-jdk21);
+        }
+
+        .stat-box.arm-25 {
+            border-color: var(--arm-jdk25);
+        }
+
+        .stat-box.rv-17 {
+            border-color: var(--rv-jdk17);
+        }
+
+        .stat-box.rv-21 {
+            border-color: var(--rv-jdk21);
+        }
+
+        .stat-box.rv-25 {
+            border-color: var(--rv-jdk25);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0.5rem 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-meta {
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-top: 0.25rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        .chart-wrapper.tall {
+            height: 500px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 1rem;
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 2px solid #334155;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #334155;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 1px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .data-panel {
+            display: none;
+        }
+
+        .data-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-2-col {
+                grid-template-columns: 1fr;
+            }
+
+            .arch-row {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .arch-header {
+                border-right: none;
+                border-bottom: 1px solid #334155;
+                padding-right: 0;
+                padding-bottom: 1rem;
+                margin-bottom: 1rem;
+            }
+        }
+
+        .mini-table td,
+        .mini-table th {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .highlight-cell {
+            color: var(--arm-jdk21);
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>SPECjbb2005 性能分析报告</h1>
+            <p class="subtitle">全方位对比：ARM (64核) vs RISC-V (64核) | JDK 17 / 21 / 25</p>
+        </header>
+
+        <!-- Core Indicators -->
+        <div class="card">
+            <h2>🏆 核心性能指标 (峰值吞吐量)</h2>
+            <div class="stats-grid">
+                <!-- ARM Row -->
+                <div class="arch-row">
+                    <div class="arch-header">
+                        <span class="arch-title" style="color:#38bdf8">ARM</span>
+                        <span class="arch-subtitle">64 核心</span>
+                    </div>
+                    <div class="stats-boxes">
+                        <div class="stat-box arm-17">
+                            <div class="stat-label">JDK 17</div>
+                            <div class="stat-value">887,397</div>
+                            <div class="stat-meta">峰值 @ 41 仓库</div>
+                        </div>
+                        <div class="stat-box arm-21">
+                            <div class="stat-label">JDK 21</div>
+                            <div class="stat-value">782,408</div>
+                            <div class="stat-meta">峰值 @ 45 仓库</div>
+                        </div>
+                        <div class="stat-box arm-25">
+                            <div class="stat-label">JDK 25</div>
+                            <div class="stat-value">831,938</div>
+                            <div class="stat-meta">峰值 @ 39 仓库</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RISC-V Row -->
+                <div class="arch-row">
+                    <div class="arch-header">
+                        <span class="arch-title" style="color:#facc15">RISC-V</span>
+                        <span class="arch-subtitle">64 核心</span>
+                    </div>
+                    <div class="stats-boxes">
+                        <div class="stat-box rv-17">
+                            <div class="stat-label">JDK 17</div>
+                            <div class="stat-value">496,531</div>
+                            <div class="stat-meta">峰值 @ 65 仓库</div>
+                        </div>
+                        <div class="stat-box rv-21">
+                            <div class="stat-label">JDK 21</div>
+                            <div class="stat-value">494,330</div>
+                            <div class="stat-meta">峰值 @ 64 仓库</div>
+                        </div>
+                        <div class="stat-box rv-25">
+                            <div class="stat-label">JDK 25</div>
+                            <div class="stat-value">447,592</div>
+                            <div class="stat-meta">峰值 @ 64 仓库</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="card">
+            <h2>📈 吞吐量趋势图 (1-128 仓库)</h2>
+            <div class="chart-wrapper tall">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Key Insights Section -->
+        <div class="card">
+            <h2>💡 数据洞察与关键发现</h2>
+            <style>
+                .insight-list {
+                    list-style: none;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                }
+
+                .insight-item {
+                    background: rgba(255, 255, 255, 0.03);
+                    padding: 1.25rem;
+                    border-radius: 0.5rem;
+                    border-left: 4px solid var(--accent);
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 1rem;
+                    transition: background 0.2s;
+                }
+
+                .insight-item:hover {
+                    background: rgba(255, 255, 255, 0.05);
+                }
+
+                .insight-icon {
+                    font-size: 1.2rem;
+                    line-height: 1.5;
+                }
+
+                .insight-content h3 {
+                    font-size: 1rem;
+                    color: var(--text-primary);
+                    margin-bottom: 0.25rem;
+                }
+
+                .insight-content p {
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                    margin: 0;
+                }
+
+                /* Varying border colors for visual distinction */
+                .insight-item:nth-child(1) {
+                    border-left-color: #38bdf8;
+                }
+
+                /* Blue */
+                .insight-item:nth-child(2) {
+                    border-left-color: #8b5cf6;
+                }
+
+                /* Violet */
+                .insight-item:nth-child(3) {
+                    border-left-color: #ef4444;
+                }
+
+                /* Red */
+                .insight-item:nth-child(4) {
+                    border-left-color: #10b981;
+                }
+
+                /* Green */
+                .insight-item:nth-child(5) {
+                    border-left-color: #f59e0b;
+                }
+
+                /* Amber */
+            </style>
+            <ul class="insight-list">
+                <li class="insight-item">
+                    <span class="insight-icon">🚀</span>
+                    <div class="insight-content">
+                        <h3>绝对性能层级</h3>
+                        <p>ARM 架构在所有 JDK 版本中均保持绝对领先地位，其峰值吞吐量稳定在 RISC-V 的 2.0 至 2.3 倍之间，这与 ARM 拥有更多核心（96 vs
+                            64）及更高的总聚合算力直接相关。</p>
+                    </div>
+                </li>
+                <li class="insight-item">
+                    <span class="insight-icon">📈</span>
+                    <div class="insight-content">
+                        <h3>ARM JDK 演进特征</h3>
+                        <p>JDK 25 (1,029k) 成功恢复了 JDK 17 (1,033k) 的高峰值水平，走出了 JDK 21 (999k) 略微回落的低谷。但在超高负载（128仓库）下，JDK 21
+                            依然保持了最好的稳定性（衰减最少）。</p>
+                    </div>
+                </li>
+                <li class="insight-item">
+                    <span class="insight-icon">📉</span>
+                    <div class="insight-content">
+                        <h3>RISC-V JDK 性能回落</h3>
+                        <p>与 ARM 不同，RISC-V 在 JDK 25 上出现了明显的峰值性能回落，从 JDK 17/21 的 ~495k 下降至 ~447k (-10%)。这表明该架构在 JDK 25
+                            的特定新特性适配上可能存在暂时的开销。</p>
+                    </div>
+                </li>
+                <li class="insight-item">
+                    <span class="insight-icon">⚖️</span>
+                    <div class="insight-content">
+                        <h3>极致的负载稳定性</h3>
+                        <p>尽管 RISC-V JDK 25 峰值较低，但它展现了极强的抗压能力。在超过最佳并发数（64）后，直到 128 仓库，其性能几乎没有任何衰减（保持率
+                            99.7%），形成了一条完美的“平顶”曲线。</p>
+                    </div>
+                </li>
+                <li class="insight-item">
+                    <span class="insight-icon">🧩</span>
+                    <div class="insight-content">
+                        <h3>核心效能分析</h3>
+                        <p>剥离核心数量差异（ARM 64核 vs RISC-V 64核），RISC-V 的单核平均贡献效率约为 ARM 的 1.4 倍。这意味着 RISC-V
+                            目前的性能瓶颈主要在于核心规模，而非单核能力。</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Architecture Ratio -->
+        <div class="card">
+            <h2>⚡ 架构性能比率 (ARM / RISC-V)</h2>
+            <div class="grid-2-col">
+                <div class="chart-wrapper">
+                    <canvas id="ratioChart"></canvas>
+                </div>
+                <div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>仓库数 (Warehouses)</th>
+                                <th>JDK 17 比率</th>
+                                <th>JDK 21 比率</th>
+                                <th>JDK 25 比率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ratioTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                    <div
+                        style="margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; font-size: 0.9rem;">
+                        <strong style="color: var(--accent)">💡 分析:</strong>
+                        <p style="margin-top:0.5rem; color: var(--text-secondary)">
+                            该图表展示了 ARM (64核) 相对于 RISC-V (64核) 的性能倍数。
+                            由于 ARM 在 JDK 25 上的峰值恢复以及 RISC-V 的性能回落，JDK 25 展现出了最高的优势比率 (~2.3倍)。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Official Scores -->
+        <div class="card">
+            <h2>📋 SPECjbb2005 官方得分</h2>
+            <div class="grid-2-col">
+                <div class="chart-wrapper">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+                <div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>架构</th>
+                                <th>JDK 17</th>
+                                <th>JDK 21</th>
+                                <th>JDK 25</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:600; color:#38bdf8">ARM (64核)</td>
+                                <td>781,488</td>
+                                <td class="highlight-cell">715,157</td>
+                                <td>675,502</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:600; color:#facc15">RISC-V (64核)</td>
+                                <td class="highlight-cell">480,245</td>
+                                <td>476,299</td>
+                                <td>436,034</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin-top:1rem; font-size:0.85rem; color: var(--text-secondary)">
+                        * 官方得分是基于特定仓库范围内的平均吞吐量计算的 (ARM: 96-192, RISC-V: 64-128)。由于本次 ARM 测试仅进行到 128 仓库，其得分包含了缺失数据点的 0
+                        值惩罚，因此低于其实际峰值潜力。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Data Tables -->
+        <div class="card">
+            <h2>📊 详细数据表</h2>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('arm25')">ARM JDK 25</button>
+                <button class="tab-btn" onclick="switchTab('rv25')">RISC-V JDK 25</button>
+                <button class="tab-btn" onclick="switchTab('arm21')">ARM JDK 21</button>
+                <button class="tab-btn" onclick="switchTab('rv21')">RISC-V JDK 21</button>
+                <button class="tab-btn" onclick="switchTab('arm17')">ARM JDK 17</button>
+                <button class="tab-btn" onclick="switchTab('rv17')">RISC-V JDK 17</button>
+            </div>
+
+            <div id="arm25" class="data-panel active"></div>
+            <div id="rv25" class="data-panel"></div>
+            <div id="arm21" class="data-panel"></div>
+            <div id="rv21" class="data-panel"></div>
+            <div id="arm17" class="data-panel"></div>
+            <div id="rv17" class="data-panel"></div>
+        </div>
+    </div>
+
+    <script>
+        // Data Arrays
+        const whLabels = Array.from({ length: 128 }, (_, i) => i + 1);
+
+        const data = {
+            arm: {
+                jdk17: [38974, 77354, 116070, 148702, 175944, 222971, 266548, 297931, 341803, 374747, 405903, 432673, 477199, 504224, 540378, 559403, 578561, 619485, 647961, 673716, 695831, 703372, 722681, 728849, 735859, 746298, 767205, 782054, 801490, 812245, 829350, 843286, 841562, 846552, 851508, 847583, 846930, 854743, 871831, 884829, 887397, 863141, 853213, 869972, 862292, 867796, 866098, 859556, 862589, 856163, 862540, 854222, 845582, 850542, 848363, 850396, 849544, 848418, 845992, 850679, 847849, 833691, 839823, 830507, 828732, 817847, 811750, 815494, 811859, 806851, 809124, 807939, 801868, 802562, 800652, 806301, 805562, 803039, 804015, 799661, 794869, 789911, 790889, 796043, 790389, 786502, 790007, 788770, 787446, 792664, 787909, 776281, 775483, 772618, 775929, 775864, 773782, 769395, 769283, 771830, 770854, 772015, 769308, 762225, 770321, 766624, 768312, 761832, 761693, 757294, 760607, 759195, 764960, 762678, 760719, 755107, 752141, 756300, 762614, 757368, 760650, 761480, 759502, 763956, 771290, 772350, 771014, 764671],
+                jdk21: [36344, 76110, 112232, 143711, 185526, 223037, 260180, 301306, 329421, 371967, 418750, 452910, 477579, 510647, 530611, 564584, 577027, 608757, 625594, 644413, 662142, 674646, 686561, 705010, 704255, 713839, 714781, 711302, 722060, 722510, 725603, 733071, 738613, 735734, 725536, 728970, 743638, 746267, 754267, 752147, 755800, 775037, 772216, 770524, 782408, 770850, 775074, 777249, 763812, 763200, 766602, 752344, 756894, 743444, 755007, 744596, 745929, 746633, 743307, 743059, 740687, 745344, 741748, 747395, 747518, 738863, 723818, 725243, 725332, 726826, 728459, 725315, 723914, 722672, 718266, 719338, 711982, 712203, 709440, 712043, 706545, 705265, 706296, 708732, 708013, 715688, 722406, 725351, 725427, 717933, 719730, 720124, 721799, 710814, 706439, 705806, 705010, 707235, 705972, 703318, 705131, 705155, 707475, 704774, 705307, 711601, 710629, 712107, 710203, 712920, 707889, 707175, 713259, 711038, 704988, 708820, 709899, 710536, 713686, 713979, 710585, 714196, 718295, 719845, 717751, 716271, 716432, 718683],
+                jdk25: [38264, 75832, 108707, 145319, 187394, 216297, 259956, 292569, 332009, 371567, 392157, 430391, 470231, 507674, 535856, 561945, 585739, 608147, 631958, 657030, 675081, 697944, 709367, 725338, 741484, 749550, 779342, 780595, 793760, 795046, 798808, 804803, 791701, 820300, 812235, 827862, 826786, 825577, 831938, 823229, 830000, 818819, 822887, 828307, 825154, 822625, 809450, 816731, 814200, 815294, 802331, 803902, 798962, 793346, 802032, 781321, 799531, 776753, 793392, 786255, 773617, 787040, 767885, 775455, 774516, 773171, 769393, 771210, 762736, 768318, 760432, 761623, 756507, 756833, 752589, 731561, 691880, 686886, 685624, 686725, 681714, 682016, 681654, 680999, 684498, 684102, 681650, 680128, 679600, 684036, 676884, 676794, 677172, 679516, 683169, 678106, 675191, 675950, 676591, 676448, 678712, 681578, 668136, 656702, 643936, 624874, 621097, 624975, 623908, 623213, 616270, 625231, 621817, 620653, 625118, 623152, 628254, 626941, 622113, 624849, 626106, 623409, 622863, 621995, 622052, 624186, 614405, 609401]
+            },
+            risc: {
+                jdk17: [10194, 19109, 27519, 34311, 47726, 55250, 62551, 72002, 83864, 92589, 99968, 114259, 118446, 128991, 132169, 143422, 150523, 156494, 164244, 171510, 182828, 185211, 207581, 207473, 214388, 222008, 227659, 234658, 252817, 255173, 265563, 276268, 267969, 282860, 295721, 300451, 304504, 319220, 325359, 330115, 335552, 340968, 347266, 357131, 365362, 379876, 376624, 392347, 394481, 406287, 407850, 420198, 427357, 433860, 439949, 446597, 453195, 459198, 466393, 472594, 478186, 484589, 491367, 496011, 496531, 495920, 493473, 494201, 492611, 493246, 493321, 491155, 491846, 490939, 489476, 489892, 488316, 489038, 488639, 486957, 487639, 487233, 485942, 486215, 484682, 485354, 484779, 483416, 483905, 483216, 481276, 482256, 480844, 481684, 481074, 479383, 480194, 479735, 478203, 478844, 476866, 477960, 477507, 475453, 476748, 476023, 474406, 469179, 468532, 473855, 473728, 472250, 472366, 471845, 470371, 471217, 469400, 470704, 470166, 468655, 469538, 468693, 467646, 468190, 466721, 467510, 467005, 465944],
+                jdk21: [9959, 23085, 32175, 40005, 47121, 58545, 67377, 77003, 80146, 92853, 103341, 107763, 118141, 128423, 140672, 142703, 157684, 160348, 166769, 181874, 181056, 191751, 202835, 210555, 207476, 219880, 229968, 245895, 245631, 265395, 262586, 269777, 263802, 277712, 283600, 298538, 308941, 314244, 319648, 319920, 331184, 348439, 355338, 359417, 370956, 372951, 382455, 389598, 398536, 402961, 407851, 415524, 423509, 431943, 437429, 444458, 451055, 456976, 463804, 469958, 475899, 482106, 487124, 494330, 493903, 492571, 492709, 491809, 490623, 490292, 487689, 487758, 487140, 485898, 485967, 484715, 484746, 484571, 483224, 483695, 482907, 481818, 481911, 480742, 480980, 480574, 479356, 479543, 478483, 478586, 478113, 476925, 477306, 476292, 476029, 475873, 474718, 474838, 474323, 473334, 473527, 472489, 472821, 472133, 471143, 471568, 470188, 470527, 470332, 469097, 469348, 468762, 467519, 467824, 466728, 467068, 466623, 465714, 465975, 464775, 465464, 464980, 463505, 464097, 463850, 463225, 463296, 462594],
+                jdk25: [10491, 24080, 33394, 41603, 52845, 61375, 66743, 62004, 85937, 88252, 87960, 105119, 105470, 114103, 126280, 133906, 139167, 146270, 159833, 158235, 164459, 185087, 186313, 194408, 203359, 207258, 218240, 231130, 226827, 240820, 245772, 257297, 259000, 268674, 278333, 282562, 290957, 301473, 301967, 309379, 317720, 320414, 334706, 333860, 347179, 347963, 360834, 354686, 368554, 372178, 376744, 385835, 388637, 391268, 401285, 408338, 410117, 416026, 421155, 428326, 434090, 440566, 444879, 447592, 447543, 437963, 437483, 444606, 445352, 439869, 435736, 438191, 442560, 441898, 432875, 433321, 439729, 440385, 436384, 432064, 434384, 439601, 439033, 431374, 430730, 436713, 437739, 433524, 429461, 431398, 435899, 435463, 427788, 427643, 432916, 433871, 429678, 426314, 427881, 432701, 433072, 425162, 427109, 433361, 435176, 430715, 430176, 432781, 437692, 438334, 430921, 432280, 438810, 439885, 432957, 434727, 437449, 442331, 443368, 417053, 437558, 444053, 445793, 440020, 439235, 442242, 446072, 446206]
+            }
+        };
+
+        const colors = {
+            // ARM Colors
+            arm17: '#3b82f6', // Blue
+            arm21: '#10b981', // Emerald
+            arm25: '#8b5cf6', // Violet
+            // RISC-V Colors (Distinct and Solid)
+            rv17: '#f59e0b',  // Amber
+            rv21: '#ec4899',  // Pink
+            rv25: '#ef4444'   // Red
+        };
+
+        // Initialize Charts
+        // Use a mid-tone gray that works on both Dark Mode (Screen) and White (Print)
+        Chart.defaults.color = '#64748b';
+        Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.2)';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        // Main Throughput Chart
+        new Chart(document.getElementById('mainChart'), {
+            type: 'line',
+            data: {
+                labels: whLabels,
+                datasets: [
+                    // ARM Datasets (Cool Tones)
+                    { label: 'ARM JDK 17', data: data.arm.jdk17, borderColor: colors.arm17, tension: 0.2, pointRadius: 0, borderWidth: 2 },
+                    { label: 'ARM JDK 21', data: data.arm.jdk21, borderColor: colors.arm21, tension: 0.2, pointRadius: 0, borderWidth: 2 },
+                    { label: 'ARM JDK 25', data: data.arm.jdk25, borderColor: colors.arm25, tension: 0.2, pointRadius: 0, borderWidth: 2 },
+                    // RISC-V Datasets (Warm Tones - Solid Lines)
+                    { label: 'RISC-V JDK 17', data: data.risc.jdk17, borderColor: colors.rv17, tension: 0.2, pointRadius: 0, borderWidth: 2 },
+                    { label: 'RISC-V JDK 21', data: data.risc.jdk21, borderColor: colors.rv21, tension: 0.2, pointRadius: 0, borderWidth: 2 },
+                    { label: 'RISC-V JDK 25', data: data.risc.jdk25, borderColor: colors.rv25, tension: 0.2, pointRadius: 0, borderWidth: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, color: '#f1f5f9' } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} bops` } }
+                },
+                scales: {
+                    x: { grid: { color: '#334155', tickLength: 0 }, title: { display: true, text: '仓库数 (Warehouses)' } },
+                    y: {
+                        grid: { color: '#334155' },
+                        ticks: { callback: v => (v / 1000) + 'k' },
+                        title: { display: true, text: '吞吐量 (bops)' }
+                    }
+                }
+            }
+        });
+
+        // Ratio Chart Calculation
+        const ratioData = {
+            jdk17: data.arm.jdk17.map((v, i) => v / data.risc.jdk17[i]),
+            jdk21: data.arm.jdk21.map((v, i) => v / data.risc.jdk21[i]),
+            jdk25: data.arm.jdk25.map((v, i) => v / data.risc.jdk25[i]),
+        };
+
+        new Chart(document.getElementById('ratioChart'), {
+            type: 'line',
+            data: {
+                labels: whLabels,
+                datasets: [
+                    { label: 'JDK 17 比率', data: ratioData.jdk17, borderColor: colors.arm17, tension: 0.3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'JDK 21 比率', data: ratioData.jdk21, borderColor: colors.arm21, tension: 0.3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'JDK 25 比率', data: ratioData.jdk25, borderColor: colors.arm25, tension: 0.3, pointRadius: 0, borderWidth: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top', labels: { color: '#f1f5f9' } } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { grid: { color: '#334155' }, min: 1, title: { display: true, text: '性能倍数 (x)' } }
+                }
+            }
+        });
+
+        // Populate Ratio Table (Sample points)
+        const tablePoints = [0, 31, 63, 95, 127]; // Indexes for 1, 32, 64, 96, 128
+        const tableBody = document.getElementById('ratioTableBody');
+        tablePoints.forEach(idx => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>WH ${idx + 1}</td>
+                <td>${ratioData.jdk17[idx].toFixed(2)}x</td>
+                <td>${ratioData.jdk21[idx].toFixed(2)}x</td>
+                <td style="font-weight:bold; color: var(--arm-jdk25)">${ratioData.jdk25[idx].toFixed(2)}x</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        // Score Chart
+        new Chart(document.getElementById('scoreChart'), {
+            type: 'bar',
+            data: {
+                labels: ['ARM (64核)', 'RISC-V (64核)'],
+                datasets: [
+                    { label: 'JDK 17', data: [781488, 480245], backgroundColor: colors.arm17 },
+                    { label: 'JDK 21', data: [715157, 476299], backgroundColor: colors.arm21 },
+                    { label: 'JDK 25', data: [675502, 436034], backgroundColor: colors.arm25 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', labels: { color: '#f1f5f9' } } },
+                scales: {
+                    y: { grid: { color: '#334155' }, ticks: { callback: v => (v / 1000) + 'k' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Generate Detailed Tables
+        function generateTable(dataset, peakWh) {
+            let html = '<table class="mini-table"><thead><tr><th>WH</th><th>bops</th><th>WH</th><th>bops</th><th>WH</th><th>bops</th><th>WH</th><th>bops</th></tr></thead><tbody>';
+            for (let i = 0; i < 32; i++) {
+                html += '<tr>';
+                for (let col = 0; col < 4; col++) {
+                    const idx = i + (col * 32);
+                    const val = dataset[idx];
+                    const isPeak = (idx + 1) === peakWh;
+                    const style = isPeak ? 'color:#38bdf8; font-weight:bold; background:rgba(56,189,248,0.1)' : '';
+                    html += `<td style="${style}">${idx + 1}</td><td style="${style}">${val.toLocaleString()}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Render tables
+        // Note: Peak WHs are hardcoded based on known analysis for highlighting
+        document.getElementById('arm17').innerHTML = generateTable(data.arm.jdk17, 41);
+        document.getElementById('arm21').innerHTML = generateTable(data.arm.jdk21, 45);
+        document.getElementById('arm25').innerHTML = generateTable(data.arm.jdk25, 39);
+        document.getElementById('rv17').innerHTML = generateTable(data.risc.jdk17, 65);
+        document.getElementById('rv21').innerHTML = generateTable(data.risc.jdk21, 64);
+        document.getElementById('rv25').innerHTML = generateTable(data.risc.jdk25, 64);
+
+        // Tab Switching
+        window.switchTab = function (id) {
+            document.querySelectorAll('.data-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+
+</html>

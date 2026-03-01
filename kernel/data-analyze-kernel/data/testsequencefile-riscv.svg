@@ -1,0 +1,1554 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="998" onload="init(evt)" viewBox="0 0 1200 998" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="998.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="981" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="981" > </text>
+<g id="frames">
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (74 samples, 1.99%)</title><rect x="723.7" y="405" width="23.5" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="726.72" y="415.5" >o..</text>
+</g>
+<g >
+<title>__riscv_sys_readlinkat (56 samples, 1.51%)</title><rect x="1132.5" y="757" width="17.8" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1135.51" y="767.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSInputStream.readBuffer (55 samples, 1.48%)</title><rect x="898.1" y="485" width="17.5" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="901.10" y="495.5" ></text>
+</g>
+<g >
+<title>PhaseChaitin::Register_Allocate (59 samples, 1.59%)</title><rect x="157.1" y="757" width="18.7" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="160.06" y="767.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketIOWithTimeout$SelectorPool.select (62 samples, 1.67%)</title><rect x="580.1" y="565" width="19.7" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="583.15" y="575.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FSOutputSummer.flushBuffer (80 samples, 2.15%)</title><rect x="1070.9" y="501" width="25.4" height="15.0" fill="rgb(251,212,50)" rx="2" ry="2" />
+<text  x="1073.89" y="511.5" >o..</text>
+</g>
+<g >
+<title>user_path_at_empty (56 samples, 1.51%)</title><rect x="1132.5" y="725" width="17.8" height="15.0" fill="rgb(233,129,30)" rx="2" ry="2" />
+<text  x="1135.51" y="735.5" ></text>
+</g>
+<g >
+<title>CompileBroker::invoke_compiler_on_method (163 samples, 4.39%)</title><rect x="49.1" y="837" width="51.7" height="15.0" fill="rgb(228,105,25)" rx="2" ry="2" />
+<text  x="52.07" y="847.5" >Compi..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketInputStream.read (73 samples, 1.97%)</title><rect x="580.1" y="629" width="23.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="583.15" y="639.5" >o..</text>
+</g>
+<g >
+<title>sun/nio/ch/IOUtil.writeFromNativeBuffer (88 samples, 2.37%)</title><rect x="615.1" y="501" width="27.9" height="15.0" fill="rgb(215,50,12)" rx="2" ry="2" />
+<text  x="618.09" y="511.5" >s..</text>
+</g>
+<g >
+<title>tcp_sendmsg_locked (63 samples, 1.70%)</title><rect x="623.0" y="293" width="20.0" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="626.03" y="303.5" ></text>
+</g>
+<g >
+<title>[not_walkable_Java] (44 samples, 1.18%)</title><rect x="121.2" y="933" width="13.9" height="15.0" fill="rgb(233,129,30)" rx="2" ry="2" />
+<text  x="124.17" y="943.5" ></text>
+</g>
+<g >
+<title>flush_icache_mm (58 samples, 1.56%)</title><rect x="25.9" y="581" width="18.4" height="15.0" fill="rgb(249,202,48)" rx="2" ry="2" />
+<text  x="28.88" y="591.5" ></text>
+</g>
+<g >
+<title>Compile::Code_Gen (79 samples, 2.13%)</title><rect x="49.1" y="789" width="25.1" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="52.07" y="799.5" >C..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ProgramDriver.run (1,421 samples, 38.25%)</title><rect x="678.3" y="773" width="451.4" height="15.0" fill="rgb(248,200,48)" rx="2" ry="2" />
+<text  x="681.30" y="783.5" >org/apache/hadoop/util/ProgramDriver.run</text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (102 samples, 2.75%)</title><rect x="12.2" y="901" width="32.4" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="15.22" y="911.5" >/u..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/DataOutputBuffer.write (68 samples, 1.83%)</title><rect x="864.7" y="581" width="21.6" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="867.75" y="591.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/NameNodeProxiesClient.createNonHAProxyWithClientProtocol (105 samples, 2.83%)</title><rect x="714.8" y="437" width="33.4" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="717.82" y="447.5" >or..</text>
+</g>
+<g >
+<title>java/util/Random.nextBytes (254 samples, 6.84%)</title><rect x="982.3" y="581" width="80.6" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="985.27" y="591.5" >java/util..</text>
+</g>
+<g >
+<title>java/util/Random.nextInt (146 samples, 3.93%)</title><rect x="793.3" y="565" width="46.4" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="796.28" y="575.5" >java..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.&lt;init&gt; (134 samples, 3.61%)</title><rect x="707.5" y="469" width="42.6" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="710.52" y="479.5" >org/..</text>
+</g>
+<g >
+<title>org/slf4j/impl/Reload4jLoggerFactory.&lt;init&gt; (42 samples, 1.13%)</title><rect x="662.7" y="805" width="13.4" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="665.73" y="815.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/Daemon$1.run (264 samples, 7.11%)</title><rect x="571.3" y="725" width="83.8" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="574.25" y="735.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.createFileSystem (157 samples, 4.23%)</title><rect x="700.2" y="533" width="49.9" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="703.21" y="543.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/NativeCrc32.nativeComputeChunkedSumsByteArray (49 samples, 1.32%)</title><rect x="1080.7" y="437" width="15.6" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="1083.73" y="447.5" ></text>
+</g>
+<g >
+<title>java/security/SecureClassLoader.defineClass (44 samples, 1.18%)</title><rect x="724.4" y="69" width="13.9" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="727.35" y="79.5" ></text>
+</g>
+<g >
+<title>do_trap_ecall_u (56 samples, 1.51%)</title><rect x="1132.5" y="773" width="17.8" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1135.51" y="783.5" ></text>
+</g>
+<g >
+<title>PhaseIdealLoop::optimize (57 samples, 1.53%)</title><rect x="231.7" y="757" width="18.1" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="234.71" y="767.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DistributedFileSystem.initDFSClient (138 samples, 3.71%)</title><rect x="706.2" y="501" width="43.9" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="709.25" y="511.5" >org/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketInputStream.read (73 samples, 1.97%)</title><rect x="580.1" y="597" width="23.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="583.15" y="607.5" >o..</text>
+</g>
+<g >
+<title>do_trap_ecall_u (66 samples, 1.78%)</title><rect x="622.1" y="421" width="20.9" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="625.08" y="431.5" ></text>
+</g>
+<g >
+<title>WorkerTaskDispatcher::worker_run_task (98 samples, 2.64%)</title><rect x="13.5" y="837" width="31.1" height="15.0" fill="rgb(212,35,8)" rx="2" ry="2" />
+<text  x="16.49" y="847.5" >Wo..</text>
+</g>
+<g >
+<title>Compile::Code_Gen (81 samples, 2.18%)</title><rect x="373.7" y="757" width="25.7" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="376.69" y="767.5" >C..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.referencedTypes (64 samples, 1.72%)</title><rect x="723.7" y="245" width="20.3" height="15.0" fill="rgb(207,12,3)" rx="2" ry="2" />
+<text  x="726.72" y="255.5" ></text>
+</g>
+<g >
+<title>Parse::do_all_blocks (76 samples, 2.05%)</title><rect x="264.7" y="741" width="24.2" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="267.74" y="751.5" >P..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x0000000029060b80.call (264 samples, 7.11%)</title><rect x="571.3" y="757" width="83.8" height="15.0" fill="rgb(242,172,41)" rx="2" ry="2" />
+<text  x="574.25" y="767.5" >org/apach..</text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (203 samples, 5.46%)</title><rect x="373.1" y="901" width="64.4" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="376.05" y="911.5" >/usr/li..</text>
+</g>
+<g >
+<title>CompileBroker::invoke_compiler_on_method (695 samples, 18.71%)</title><rect x="139.3" y="821" width="220.7" height="15.0" fill="rgb(228,105,25)" rx="2" ry="2" />
+<text  x="142.28" y="831.5" >CompileBroker::invoke_compile..</text>
+</g>
+<g >
+<title>Compilation::emit_lir (61 samples, 1.64%)</title><rect x="321.0" y="741" width="19.3" height="15.0" fill="rgb(218,62,14)" rx="2" ry="2" />
+<text  x="323.96" y="751.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.unJar (109 samples, 2.93%)</title><rect x="1131.9" y="901" width="34.6" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="1134.87" y="911.5" >or..</text>
+</g>
+<g >
+<title>JavaThread::thread_main_inner (200 samples, 5.38%)</title><rect x="373.4" y="837" width="63.5" height="15.0" fill="rgb(226,100,23)" rx="2" ry="2" />
+<text  x="376.37" y="847.5" >JavaTh..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/client/impl/BlockReaderRemote.readNextPacket (52 samples, 1.40%)</title><rect x="899.0" y="437" width="16.6" height="15.0" fill="rgb(243,176,42)" rx="2" ry="2" />
+<text  x="902.05" y="447.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (1,427 samples, 38.41%)</title><rect x="676.4" y="869" width="453.3" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="679.39" y="879.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/NameNodeProxiesClient.createProxyWithAlignmentContext (105 samples, 2.83%)</title><rect x="714.8" y="421" width="33.4" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="717.82" y="431.5" >or..</text>
+</g>
+<g >
+<title>java/io/DataOutputStream.write (91 samples, 2.45%)</title><rect x="1068.7" y="581" width="28.9" height="15.0" fill="rgb(237,148,35)" rx="2" ry="2" />
+<text  x="1071.66" y="591.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSInputStream.readWithStrategy (61 samples, 1.64%)</title><rect x="866.0" y="517" width="19.4" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="869.02" y="527.5" ></text>
+</g>
+<g >
+<title>Compile::optimize_loops (44 samples, 1.18%)</title><rect x="208.8" y="757" width="14.0" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="211.84" y="767.5" ></text>
+</g>
+<g >
+<title>AbstractICache::invalidate_range (59 samples, 1.59%)</title><rect x="25.9" y="677" width="18.7" height="15.0" fill="rgb(239,156,37)" rx="2" ry="2" />
+<text  x="28.88" y="687.5" ></text>
+</g>
+<g >
+<title>Compilation::build_hir (62 samples, 1.67%)</title><rect x="294.0" y="741" width="19.7" height="15.0" fill="rgb(217,58,14)" rx="2" ry="2" />
+<text  x="296.96" y="751.5" ></text>
+</g>
+<g >
+<title>do_huge_pmd_anonymous_page (76 samples, 2.05%)</title><rect x="544.3" y="821" width="24.1" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="547.26" y="831.5" >d..</text>
+</g>
+<g >
+<title>CompileBroker::compiler_thread_loop (163 samples, 4.39%)</title><rect x="49.1" y="853" width="51.7" height="15.0" fill="rgb(234,133,31)" rx="2" ry="2" />
+<text  x="52.07" y="863.5" >Compi..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/client/impl/BlockReaderRemote.readNextPacket (45 samples, 1.21%)</title><rect x="868.6" y="453" width="14.3" height="15.0" fill="rgb(243,176,42)" rx="2" ry="2" />
+<text  x="871.56" y="463.5" ></text>
+</g>
+<g >
+<title>syscall (59 samples, 1.59%)</title><rect x="25.9" y="645" width="18.7" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="28.88" y="655.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (1,428 samples, 38.44%)</title><rect x="676.1" y="901" width="453.6" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="679.07" y="911.5" >java/lang/reflect/Method.invoke</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/RandomDatum$Generator.next (289 samples, 7.78%)</title><rect x="752.9" y="613" width="91.8" height="15.0" fill="rgb(225,95,22)" rx="2" ry="2" />
+<text  x="755.94" y="623.5" >org/apache..</text>
+</g>
+<g >
+<title>write (88 samples, 2.37%)</title><rect x="615.1" y="453" width="27.9" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="618.09" y="463.5" >w..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2.getProxy (72 samples, 1.94%)</title><rect x="723.7" y="389" width="22.9" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="726.72" y="399.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DataStreamer.work (161 samples, 4.33%)</title><rect x="604.0" y="709" width="51.1" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="606.97" y="719.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem$Cache.getInternal (158 samples, 4.25%)</title><rect x="699.9" y="549" width="50.2" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="702.90" y="559.5" >org/a..</text>
+</g>
+<g >
+<title>jdk/internal/vm/ScopedValueContainer.call (264 samples, 7.11%)</title><rect x="571.3" y="805" width="83.8" height="15.0" fill="rgb(226,100,24)" rx="2" ry="2" />
+<text  x="574.25" y="815.5" >jdk/inter..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Writer.&lt;init&gt; (41 samples, 1.10%)</title><rect x="1116.6" y="581" width="13.1" height="15.0" fill="rgb(233,129,30)" rx="2" ry="2" />
+<text  x="1119.63" y="591.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/AbstractClassLoaderValue.computeIfAbsent (71 samples, 1.91%)</title><rect x="723.7" y="341" width="22.6" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="726.72" y="351.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem$Cache.get (214 samples, 5.76%)</title><rect x="682.1" y="565" width="68.0" height="15.0" fill="rgb(218,62,14)" rx="2" ry="2" />
+<text  x="685.11" y="575.5" >org/apa..</text>
+</g>
+<g >
+<title>G1CodeRootSet::nmethods_do (59 samples, 1.59%)</title><rect x="25.9" y="757" width="18.7" height="15.0" fill="rgb(218,62,14)" rx="2" ry="2" />
+<text  x="28.88" y="767.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSInputStream.readBuffer (48 samples, 1.29%)</title><rect x="867.9" y="501" width="15.3" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="870.92" y="511.5" ></text>
+</g>
+<g >
+<title>Thread::call_run (202 samples, 5.44%)</title><rect x="373.4" y="853" width="64.1" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="376.37" y="863.5" >Thread:..</text>
+</g>
+<g >
+<title>java/io/BufferedOutputStream.write (97 samples, 2.61%)</title><rect x="613.2" y="645" width="30.8" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="616.18" y="655.5" >ja..</text>
+</g>
+<g >
+<title>java/io/UnixFileSystem.canonicalize0 (57 samples, 1.53%)</title><rect x="1132.2" y="837" width="18.1" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="1135.19" y="847.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::GraphBuilder (52 samples, 1.40%)</title><rect x="294.3" y="693" width="16.5" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="297.28" y="703.5" ></text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (733 samples, 19.73%)</title><rect x="135.1" y="917" width="232.9" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="138.15" y="927.5" >/usr/lib64/libc.so.6</text>
+</g>
+<g >
+<title>jbyte_disjoint_arraycopy (140 samples, 3.77%)</title><rect x="470.9" y="917" width="44.5" height="15.0" fill="rgb(208,15,3)" rx="2" ry="2" />
+<text  x="473.88" y="927.5" >jbyt..</text>
+</g>
+<g >
+<title>IR::IR (52 samples, 1.40%)</title><rect x="294.3" y="725" width="16.5" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="297.28" y="735.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FSDataOutputStream$PositionCache.write (91 samples, 2.45%)</title><rect x="1068.7" y="565" width="28.9" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="1071.66" y="575.5" >or..</text>
+</g>
+<g >
+<title>realpath (57 samples, 1.53%)</title><rect x="1132.2" y="821" width="18.1" height="15.0" fill="rgb(229,110,26)" rx="2" ry="2" />
+<text  x="1135.19" y="831.5" ></text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.getLogger (63 samples, 1.70%)</title><rect x="656.1" y="901" width="20.0" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="659.06" y="911.5" ></text>
+</g>
+<g >
+<title>handle_page_fault (83 samples, 2.23%)</title><rect x="543.6" y="869" width="26.4" height="15.0" fill="rgb(231,120,28)" rx="2" ry="2" />
+<text  x="546.62" y="879.5" >h..</text>
+</g>
+<g >
+<title>java/util/concurrent/atomic/AtomicLong.compareAndSet (119 samples, 3.20%)</title><rect x="801.5" y="533" width="37.8" height="15.0" fill="rgb(251,214,51)" rx="2" ry="2" />
+<text  x="804.54" y="543.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/RandomDatum.&lt;init&gt; (294 samples, 7.91%)</title><rect x="972.1" y="597" width="93.4" height="15.0" fill="rgb(231,121,28)" rx="2" ry="2" />
+<text  x="975.10" y="607.5" >org/apache/..</text>
+</g>
+<g >
+<title>org/slf4j/impl/StaticLoggerBinder.&lt;init&gt; (43 samples, 1.16%)</title><rect x="662.4" y="821" width="13.7" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="665.41" y="831.5" ></text>
+</g>
+<g >
+<title>IRScope::IRScope (52 samples, 1.40%)</title><rect x="294.3" y="709" width="16.5" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="297.28" y="719.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/NameNodeProxiesClient.createProxyWithClientProtocol (110 samples, 2.96%)</title><rect x="713.6" y="453" width="34.9" height="15.0" fill="rgb(216,54,13)" rx="2" ry="2" />
+<text  x="716.55" y="463.5" >or..</text>
+</g>
+<g >
+<title>ret_from_exception (59 samples, 1.59%)</title><rect x="25.9" y="629" width="18.7" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="28.88" y="639.5" ></text>
+</g>
+<g >
+<title>java/lang/Class.getDeclaredMethods0 (64 samples, 1.72%)</title><rect x="723.7" y="165" width="20.3" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="726.72" y="175.5" ></text>
+</g>
+<g >
+<title>C2Compiler::compile_method (169 samples, 4.55%)</title><rect x="373.7" y="789" width="53.7" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="376.69" y="799.5" >C2Com..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/Daemon.run (264 samples, 7.11%)</title><rect x="571.3" y="933" width="83.8" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="574.25" y="943.5" >org/apach..</text>
+</g>
+<g >
+<title>ParseGenerator::generate (78 samples, 2.10%)</title><rect x="264.7" y="773" width="24.8" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="267.74" y="783.5" >P..</text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (287 samples, 7.73%)</title><rect x="11.6" y="933" width="91.1" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="14.59" y="943.5" >/usr/lib64..</text>
+</g>
+<g >
+<title>__handle_mm_fault (81 samples, 2.18%)</title><rect x="544.3" y="837" width="25.7" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="547.26" y="847.5" >_..</text>
+</g>
+<g >
+<title>G1RemSet::scan_collection_set_code_roots (59 samples, 1.59%)</title><rect x="25.9" y="805" width="18.7" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="28.88" y="815.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (1,421 samples, 38.25%)</title><rect x="678.3" y="741" width="451.4" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="681.30" y="751.5" >java/lang/reflect/Method.invoke</text>
+</g>
+<g >
+<title>org/apache/log4j/LogManager.&lt;clinit&gt; (41 samples, 1.10%)</title><rect x="663.0" y="789" width="13.1" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="666.05" y="799.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x000000002904ac00.invokeStatic (1,427 samples, 38.41%)</title><rect x="676.4" y="821" width="453.3" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="679.39" y="831.5" >java/lang/invoke/LambdaForm$DMH.0x000000002904ac00.invokeStatic</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/Path.getFileSystem (223 samples, 6.00%)</title><rect x="680.2" y="629" width="70.8" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="683.20" y="639.5" >org/apac..</text>
+</g>
+<g >
+<title>sun/nio/ch/SocketChannelImpl.write (95 samples, 2.56%)</title><rect x="613.8" y="565" width="30.2" height="15.0" fill="rgb(208,16,3)" rx="2" ry="2" />
+<text  x="616.82" y="575.5" >su..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x000000002904ac00.invokeStatic (1,420 samples, 38.22%)</title><rect x="678.6" y="661" width="451.1" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="681.61" y="671.5" >java/lang/invoke/LambdaForm$DMH.0x000000002904ac00.invokeStatic</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FSOutputSummer.flushBuffer (80 samples, 2.15%)</title><rect x="1070.9" y="517" width="25.4" height="15.0" fill="rgb(251,212,50)" rx="2" ry="2" />
+<text  x="1073.89" y="527.5" >o..</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.getLogger (63 samples, 1.70%)</title><rect x="656.1" y="917" width="20.0" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="659.06" y="927.5" ></text>
+</g>
+<g >
+<title>java/lang/ScopedValue$Carrier.runWith (264 samples, 7.11%)</title><rect x="571.3" y="821" width="83.8" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="574.25" y="831.5" >java/lang..</text>
+</g>
+<g >
+<title>Compile::Code_Gen (214 samples, 5.76%)</title><rect x="140.2" y="773" width="68.0" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="143.23" y="783.5" >Compile..</text>
+</g>
+<g >
+<title>org/slf4j/impl/StaticLoggerBinder.&lt;clinit&gt; (43 samples, 1.16%)</title><rect x="662.4" y="837" width="13.7" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="665.41" y="847.5" ></text>
+</g>
+<g >
+<title>java/lang/ScopedValue$Carrier.call (264 samples, 7.11%)</title><rect x="571.3" y="837" width="83.8" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="574.25" y="847.5" >java/lang..</text>
+</g>
+<g >
+<title>__sock_sendmsg (66 samples, 1.78%)</title><rect x="622.1" y="341" width="20.9" height="15.0" fill="rgb(223,87,20)" rx="2" ry="2" />
+<text  x="625.08" y="351.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem$Cache$Key.&lt;init&gt; (56 samples, 1.51%)</title><rect x="682.1" y="533" width="17.8" height="15.0" fill="rgb(229,114,27)" rx="2" ry="2" />
+<text  x="685.11" y="543.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (264 samples, 7.11%)</title><rect x="571.3" y="901" width="83.8" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="574.25" y="911.5" >org/apach..</text>
+</g>
+<g >
+<title>__do_huge_pmd_anonymous_page (76 samples, 2.05%)</title><rect x="544.3" y="805" width="24.1" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="547.26" y="815.5" >_..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClassOrNull (63 samples, 1.70%)</title><rect x="724.0" y="117" width="20.0" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="727.03" y="127.5" ></text>
+</g>
+<g >
+<title>nmethod::fix_oop_relocations (59 samples, 1.59%)</title><rect x="25.9" y="693" width="18.7" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="28.88" y="703.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (1,420 samples, 38.22%)</title><rect x="678.6" y="709" width="451.1" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="681.61" y="719.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketOutputStream.write (96 samples, 2.58%)</title><rect x="613.5" y="629" width="30.5" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="616.50" y="639.5" >or..</text>
+</g>
+<g >
+<title>java/util/Random.next (146 samples, 3.93%)</title><rect x="793.3" y="549" width="46.4" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="796.28" y="559.5" >java..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSPacket.writeTo (108 samples, 2.91%)</title><rect x="612.9" y="677" width="34.3" height="15.0" fill="rgb(222,80,19)" rx="2" ry="2" />
+<text  x="615.86" y="687.5" >or..</text>
+</g>
+<g >
+<title>sun/nio/ch/IOUtil.write (93 samples, 2.50%)</title><rect x="613.8" y="517" width="29.6" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="616.82" y="527.5" >su..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/ByteArrayStrategy.readFromBlock (48 samples, 1.29%)</title><rect x="867.9" y="485" width="15.3" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="870.92" y="495.5" ></text>
+</g>
+<g >
+<title>G1ScanAndCountNMethodClosure::do_nmethod (59 samples, 1.59%)</title><rect x="25.9" y="741" width="18.7" height="15.0" fill="rgb(232,128,30)" rx="2" ry="2" />
+<text  x="28.88" y="751.5" ></text>
+</g>
+<g >
+<title>[unknown_Java] (240 samples, 6.46%)</title><rect x="458.2" y="933" width="76.2" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="461.18" y="943.5" >[unknown..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/protocolPB/PBHelperClient.vintPrefixed (73 samples, 1.97%)</title><rect x="580.1" y="677" width="23.2" height="15.0" fill="rgb(217,58,13)" rx="2" ry="2" />
+<text  x="583.15" y="687.5" >o..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x0000000029065800.invoke (1,420 samples, 38.22%)</title><rect x="678.6" y="677" width="451.1" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="681.61" y="687.5" >java/lang/invoke/LambdaForm$MH.0x0000000029065800.invoke</text>
+</g>
+<g >
+<title>G1CollectedHeap::par_iterate_regions_array (59 samples, 1.59%)</title><rect x="25.9" y="789" width="18.7" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="28.88" y="799.5" ></text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (285 samples, 7.67%)</title><rect x="11.6" y="917" width="90.5" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="14.59" y="927.5" >/usr/lib64..</text>
+</g>
+<g >
+<title>java/io/DataOutputStream.write (97 samples, 2.61%)</title><rect x="613.2" y="661" width="30.8" height="15.0" fill="rgb(237,148,35)" rx="2" ry="2" />
+<text  x="616.18" y="671.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/RandomDatum.&lt;init&gt; (284 samples, 7.64%)</title><rect x="754.2" y="597" width="90.2" height="15.0" fill="rgb(231,121,28)" rx="2" ry="2" />
+<text  x="757.21" y="607.5" >org/apache..</text>
+</g>
+<g >
+<title>G1EvacuateRegionsBaseTask::work (98 samples, 2.64%)</title><rect x="13.5" y="821" width="31.1" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="16.49" y="831.5" >G1..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.&lt;clinit&gt; (66 samples, 1.78%)</title><rect x="655.1" y="933" width="21.0" height="15.0" fill="rgb(230,117,27)" rx="2" ry="2" />
+<text  x="658.11" y="943.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.&lt;init&gt; (134 samples, 3.61%)</title><rect x="707.5" y="485" width="42.6" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="710.52" y="495.5" >org/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/client/impl/BlockReaderRemote.read (54 samples, 1.45%)</title><rect x="898.4" y="453" width="17.2" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="901.41" y="463.5" ></text>
+</g>
+<g >
+<title>Compile::Compile (146 samples, 3.93%)</title><rect x="49.1" y="805" width="46.3" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="52.07" y="815.5" >Comp..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/DataChecksum.calculateChunkedSums (49 samples, 1.32%)</title><rect x="1080.7" y="469" width="15.6" height="15.0" fill="rgb(242,170,40)" rx="2" ry="2" />
+<text  x="1083.73" y="479.5" ></text>
+</g>
+<g >
+<title>sun/nio/ch/SocketDispatcher.write (88 samples, 2.37%)</title><rect x="615.1" y="485" width="27.9" height="15.0" fill="rgb(247,197,47)" rx="2" ry="2" />
+<text  x="618.09" y="495.5" >s..</text>
+</g>
+<g >
+<title>vma_alloc_anon_folio_pmd (72 samples, 1.94%)</title><rect x="545.5" y="789" width="22.9" height="15.0" fill="rgb(236,144,34)" rx="2" ry="2" />
+<text  x="548.53" y="799.5" >v..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.defineClass (52 samples, 1.40%)</title><rect x="724.0" y="85" width="16.6" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="727.03" y="95.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/io/TestSequenceFile.readTest (659 samples, 17.74%)</title><rect x="751.0" y="629" width="209.4" height="15.0" fill="rgb(249,202,48)" rx="2" ry="2" />
+<text  x="754.03" y="639.5" >org/apache/hadoop/io/TestSe..</text>
+</g>
+<g >
+<title>RiscvFlushIcache::flush (59 samples, 1.59%)</title><rect x="25.9" y="661" width="18.7" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="28.88" y="671.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FSOutputSummer.write1 (83 samples, 2.23%)</title><rect x="1069.9" y="533" width="26.4" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="1072.94" y="543.5" >o..</text>
+</g>
+<g >
+<title>java/io/File.getCanonicalPath (57 samples, 1.53%)</title><rect x="1132.2" y="869" width="18.1" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="1135.19" y="879.5" ></text>
+</g>
+<g >
+<title>WorkerThread::run (99 samples, 2.66%)</title><rect x="13.2" y="853" width="31.4" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="16.18" y="863.5" >Wo..</text>
+</g>
+<g >
+<title>inet6_sendmsg (66 samples, 1.78%)</title><rect x="622.1" y="325" width="20.9" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="625.08" y="335.5" ></text>
+</g>
+<g >
+<title>Thread::call_run (167 samples, 4.50%)</title><rect x="49.1" y="885" width="53.0" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="52.07" y="895.5" >Threa..</text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (733 samples, 19.73%)</title><rect x="135.1" y="901" width="232.9" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="138.15" y="911.5" >/usr/lib64/libc.so.6</text>
+</g>
+<g >
+<title>handle_mm_fault (81 samples, 2.18%)</title><rect x="544.3" y="853" width="25.7" height="15.0" fill="rgb(240,165,39)" rx="2" ry="2" />
+<text  x="547.26" y="863.5" >h..</text>
+</g>
+<g >
+<title>java/lang/Class.getMethods (64 samples, 1.72%)</title><rect x="723.7" y="229" width="20.3" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="726.72" y="239.5" ></text>
+</g>
+<g >
+<title>Compilation::compile_method (203 samples, 5.46%)</title><rect x="293.6" y="773" width="64.5" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="296.64" y="783.5" >Compila..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (264 samples, 7.11%)</title><rect x="571.3" y="853" width="83.8" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="574.25" y="863.5" >javax/sec..</text>
+</g>
+<g >
+<title>ret_from_exception (56 samples, 1.51%)</title><rect x="1132.5" y="789" width="17.8" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="1135.51" y="799.5" ></text>
+</g>
+<g >
+<title>do_trap_ecall_u (59 samples, 1.59%)</title><rect x="25.9" y="613" width="18.7" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="28.88" y="623.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DataStreamer.sendPacket (109 samples, 2.93%)</title><rect x="612.9" y="693" width="34.6" height="15.0" fill="rgb(207,10,2)" rx="2" ry="2" />
+<text  x="615.86" y="703.5" >or..</text>
+</g>
+<g >
+<title>do_page_fault (83 samples, 2.23%)</title><rect x="543.6" y="885" width="26.4" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="546.62" y="895.5" >d..</text>
+</g>
+<g >
+<title>C2Compiler::compile_method (146 samples, 3.93%)</title><rect x="49.1" y="821" width="46.3" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="52.07" y="831.5" >C2Co..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketIOWithTimeout.doIO (95 samples, 2.56%)</title><rect x="613.8" y="597" width="30.2" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="616.82" y="607.5" >or..</text>
+</g>
+<g >
+<title>Compile::Compile (168 samples, 4.52%)</title><rect x="373.7" y="773" width="53.3" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="376.69" y="783.5" >Compi..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem$Cache$Key.&lt;init&gt; (56 samples, 1.51%)</title><rect x="682.1" y="549" width="17.8" height="15.0" fill="rgb(229,114,27)" rx="2" ry="2" />
+<text  x="685.11" y="559.5" ></text>
+</g>
+<g >
+<title>thread_native_entry (102 samples, 2.75%)</title><rect x="12.2" y="885" width="32.4" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="15.22" y="895.5" >th..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/RandomDatum$Generator.next (299 samples, 8.05%)</title><rect x="970.8" y="613" width="95.0" height="15.0" fill="rgb(225,95,22)" rx="2" ry="2" />
+<text  x="973.83" y="623.5" >org/apache/..</text>
+</g>
+<g >
+<title>jdk/internal/loader/AbstractClassLoaderValue$Memoizer.get (71 samples, 1.91%)</title><rect x="723.7" y="325" width="22.6" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="726.72" y="335.5" >j..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.lambda$getProxyConstructor$0 (71 samples, 1.91%)</title><rect x="723.7" y="293" width="22.6" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="726.72" y="303.5" >j..</text>
+</g>
+<g >
+<title>thread_native_entry (723 samples, 19.46%)</title><rect x="138.3" y="885" width="229.7" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="141.32" y="895.5" >thread_native_entry</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.bind (63 samples, 1.70%)</title><rect x="656.1" y="853" width="20.0" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="659.06" y="863.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.newProxyInstance (72 samples, 1.94%)</title><rect x="723.7" y="373" width="22.9" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="726.72" y="383.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FSOutputSummer.writeChecksumChunks (80 samples, 2.15%)</title><rect x="1070.9" y="485" width="25.4" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="1073.89" y="495.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Reader.next (128 samples, 3.45%)</title><rect x="886.7" y="581" width="40.6" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="889.66" y="591.5" >org..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetPublicMethods (64 samples, 1.72%)</title><rect x="723.7" y="197" width="20.3" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="726.72" y="207.5" ></text>
+</g>
+<g >
+<title>ret_from_exception (83 samples, 2.23%)</title><rect x="543.6" y="901" width="26.4" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="546.62" y="911.5" >r..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSInputStream.read (75 samples, 2.02%)</title><rect x="894.3" y="517" width="23.8" height="15.0" fill="rgb(215,49,11)" rx="2" ry="2" />
+<text  x="897.29" y="527.5" >o..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetDeclaredMethods (64 samples, 1.72%)</title><rect x="723.7" y="181" width="20.3" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="726.72" y="191.5" ></text>
+</g>
+<g >
+<title>java/util/Random.nextInt (173 samples, 4.66%)</title><rect x="1008.0" y="565" width="54.9" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="1011.00" y="575.5" >java/..</text>
+</g>
+<g >
+<title>java/lang/ClassLoader.loadClass (64 samples, 1.72%)</title><rect x="723.7" y="149" width="20.3" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="726.72" y="159.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$$Lambda.0x0000000029012188.apply (71 samples, 1.91%)</title><rect x="723.7" y="309" width="22.6" height="15.0" fill="rgb(251,215,51)" rx="2" ry="2" />
+<text  x="726.72" y="319.5" >j..</text>
+</g>
+<g >
+<title>CompileBroker::compiler_thread_loop (698 samples, 18.79%)</title><rect x="138.6" y="837" width="221.7" height="15.0" fill="rgb(234,133,31)" rx="2" ry="2" />
+<text  x="141.64" y="847.5" >CompileBroker::compiler_threa..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (264 samples, 7.11%)</title><rect x="571.3" y="885" width="83.8" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="574.25" y="895.5" >java/lang..</text>
+</g>
+<g >
+<title>[unknown] (1,017 samples, 27.38%)</title><rect x="135.1" y="933" width="323.1" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="138.15" y="943.5" >[unknown]</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile.createWriter (42 samples, 1.13%)</title><rect x="1116.3" y="613" width="13.4" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="1119.31" y="623.5" ></text>
+</g>
+<g >
+<title>Compile::Compile (480 samples, 12.92%)</title><rect x="139.3" y="789" width="152.4" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="142.28" y="799.5" >Compile::Compile</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ProgramDriver$ProgramDescription.invoke (1,421 samples, 38.25%)</title><rect x="678.3" y="757" width="451.4" height="15.0" fill="rgb(236,145,34)" rx="2" ry="2" />
+<text  x="681.30" y="767.5" >org/apache/hadoop/util/ProgramDriver$ProgramDescription.invoke</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketIOWithTimeout.doIO (73 samples, 1.97%)</title><rect x="580.1" y="581" width="23.2" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="583.15" y="591.5" >o..</text>
+</g>
+<g >
+<title>all (3,715 samples, 100%)</title><rect x="10.0" y="949" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="959.5" ></text>
+</g>
+<g >
+<title>G1ScanCodeRootsClosure::do_heap_region (59 samples, 1.59%)</title><rect x="25.9" y="773" width="18.7" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="28.88" y="783.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (1,427 samples, 38.41%)</title><rect x="676.4" y="885" width="453.3" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="679.39" y="895.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invoke</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Reader.nextRaw (82 samples, 2.21%)</title><rect x="934.3" y="613" width="26.1" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="937.31" y="623.5" >o..</text>
+</g>
+<g >
+<title>memcpy (98 samples, 2.64%)</title><rect x="538.9" y="933" width="31.1" height="15.0" fill="rgb(208,14,3)" rx="2" ry="2" />
+<text  x="541.86" y="943.5" >me..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.get (214 samples, 5.76%)</title><rect x="682.1" y="581" width="68.0" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="685.11" y="591.5" >org/apa..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Reader.next (247 samples, 6.65%)</title><rect x="855.9" y="613" width="78.4" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="858.85" y="623.5" >org/apach..</text>
+</g>
+<g >
+<title>Parse::Parse (78 samples, 2.10%)</title><rect x="264.7" y="757" width="24.8" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="267.74" y="767.5" >P..</text>
+</g>
+<g >
+<title>readlink (57 samples, 1.53%)</title><rect x="1132.2" y="805" width="18.1" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="1135.19" y="815.5" ></text>
+</g>
+<g >
+<title>java/util/Random.nextBytes (219 samples, 5.90%)</title><rect x="770.1" y="581" width="69.6" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="773.09" y="591.5" >java/ut..</text>
+</g>
+<g >
+<title>Compiler::compile_method (203 samples, 5.46%)</title><rect x="293.6" y="805" width="64.5" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="296.64" y="815.5" >Compile..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSInputStream.readWithStrategy (70 samples, 1.88%)</title><rect x="895.6" y="501" width="22.2" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="898.56" y="511.5" >o..</text>
+</g>
+<g >
+<title>GraphBuilder::iterate_all_blocks (51 samples, 1.37%)</title><rect x="294.6" y="677" width="16.2" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="297.60" y="687.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketOutputStream.write (95 samples, 2.56%)</title><rect x="613.8" y="613" width="30.2" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="616.82" y="623.5" >or..</text>
+</g>
+<g >
+<title>PredictedCallGenerator::generate (47 samples, 1.27%)</title><rect x="271.1" y="693" width="14.9" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="274.09" y="703.5" ></text>
+</g>
+<g >
+<title>java/util/Random.next (172 samples, 4.63%)</title><rect x="1008.3" y="549" width="54.6" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="1011.31" y="559.5" >java/..</text>
+</g>
+<g >
+<title>java/lang/ClassLoader.defineClass1 (43 samples, 1.16%)</title><rect x="724.4" y="37" width="13.6" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="727.35" y="47.5" ></text>
+</g>
+<g >
+<title>sun/nio/ch/SocketDispatcher.write0 (88 samples, 2.37%)</title><rect x="615.1" y="469" width="27.9" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
+<text  x="618.09" y="479.5" >s..</text>
+</g>
+<g >
+<title>C2Compiler::compile_method (483 samples, 13.00%)</title><rect x="139.3" y="805" width="153.4" height="15.0" fill="rgb(248,202,48)" rx="2" ry="2" />
+<text  x="142.28" y="815.5" >C2Compiler::compile..</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.performInitialization (63 samples, 1.70%)</title><rect x="656.1" y="869" width="20.0" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="659.06" y="879.5" ></text>
+</g>
+<g >
+<title>sun/nio/ch/IOUtil.write (93 samples, 2.50%)</title><rect x="613.8" y="533" width="29.6" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="616.82" y="543.5" >su..</text>
+</g>
+<g >
+<title>Parse::do_call (68 samples, 1.83%)</title><rect x="264.7" y="709" width="21.6" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="267.74" y="719.5" >P..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.get (217 samples, 5.84%)</title><rect x="682.1" y="597" width="68.9" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="685.11" y="607.5" >org/apa..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/TestSequenceFile.writeTest (533 samples, 14.35%)</title><rect x="960.4" y="629" width="169.3" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="963.35" y="639.5" >org/apache/hadoop/io/..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClass (64 samples, 1.72%)</title><rect x="723.7" y="133" width="20.3" height="15.0" fill="rgb(206,7,1)" rx="2" ry="2" />
+<text  x="726.72" y="143.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DataStreamer$ResponseProcessor.work (103 samples, 2.77%)</title><rect x="571.3" y="709" width="32.7" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="574.25" y="719.5" >or..</text>
+</g>
+<g >
+<title>Thread::call_run (102 samples, 2.75%)</title><rect x="12.2" y="869" width="32.4" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="15.22" y="879.5" >Th..</text>
+</g>
+<g >
+<title>do_readlinkat (56 samples, 1.51%)</title><rect x="1132.5" y="741" width="17.8" height="15.0" fill="rgb(228,106,25)" rx="2" ry="2" />
+<text  x="1135.51" y="751.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSInputStream.read (65 samples, 1.75%)</title><rect x="865.7" y="533" width="20.6" height="15.0" fill="rgb(215,49,11)" rx="2" ry="2" />
+<text  x="868.70" y="543.5" ></text>
+</g>
+<g >
+<title>nmethod::oops_do_process_weak (59 samples, 1.59%)</title><rect x="25.9" y="709" width="18.7" height="15.0" fill="rgb(214,43,10)" rx="2" ry="2" />
+<text  x="28.88" y="719.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::invoke (43 samples, 1.16%)</title><rect x="296.5" y="645" width="13.7" height="15.0" fill="rgb(242,171,41)" rx="2" ry="2" />
+<text  x="299.50" y="655.5" ></text>
+</g>
+<g >
+<title>Parse::do_one_block (76 samples, 2.05%)</title><rect x="264.7" y="725" width="24.2" height="15.0" fill="rgb(240,161,38)" rx="2" ry="2" />
+<text  x="267.74" y="735.5" >P..</text>
+</g>
+<g >
+<title>ksys_write (66 samples, 1.78%)</title><rect x="622.1" y="389" width="20.9" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="625.08" y="399.5" ></text>
+</g>
+<g >
+<title>sock_write_iter (66 samples, 1.78%)</title><rect x="622.1" y="357" width="20.9" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="625.08" y="367.5" ></text>
+</g>
+<g >
+<title>clear_page (67 samples, 1.80%)</title><rect x="546.5" y="757" width="21.3" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="549.48" y="767.5" >c..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.&lt;init&gt; (65 samples, 1.75%)</title><rect x="723.7" y="261" width="20.7" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="726.72" y="271.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/protocol/datatransfer/PipelineAck.readFields (85 samples, 2.29%)</title><rect x="576.3" y="693" width="27.0" height="15.0" fill="rgb(212,33,8)" rx="2" ry="2" />
+<text  x="579.34" y="703.5" >o..</text>
+</g>
+<g >
+<title>Compile::Optimize (47 samples, 1.27%)</title><rect x="74.2" y="789" width="14.9" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="77.16" y="799.5" ></text>
+</g>
+<g >
+<title>Compilation::Compilation (203 samples, 5.46%)</title><rect x="293.6" y="789" width="64.5" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="296.64" y="799.5" >Compila..</text>
+</g>
+<g >
+<title>ciEnv::register_method (40 samples, 1.08%)</title><rect x="344.1" y="741" width="12.8" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="347.15" y="751.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x0000000029036ba8.call (264 samples, 7.11%)</title><rect x="571.3" y="773" width="83.8" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="574.25" y="783.5" >javax/sec..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x0000000029065800.invoke (1,427 samples, 38.41%)</title><rect x="676.4" y="837" width="453.3" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="679.39" y="847.5" >java/lang/invoke/LambdaForm$MH.0x0000000029065800.invoke</text>
+</g>
+<g >
+<title>java/lang/ClassLoader.defineClass (44 samples, 1.18%)</title><rect x="724.4" y="53" width="13.9" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="727.35" y="63.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Reader.next (234 samples, 6.30%)</title><rect x="860.0" y="597" width="74.3" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="862.98" y="607.5" >org/apac..</text>
+</g>
+<g >
+<title>sun/nio/ch/SocketChannelImpl.implWrite (95 samples, 2.56%)</title><rect x="613.8" y="549" width="30.2" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="616.82" y="559.5" >su..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.main (1,583 samples, 42.61%)</title><rect x="676.1" y="933" width="502.8" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="679.07" y="943.5" >org/apache/hadoop/util/RunJar.main</text>
+</g>
+<g >
+<title>JavaThread::thread_main_inner (699 samples, 18.82%)</title><rect x="138.6" y="853" width="222.1" height="15.0" fill="rgb(226,100,23)" rx="2" ry="2" />
+<text  x="141.64" y="863.5" >JavaThread::thread_main_inner</text>
+</g>
+<g >
+<title>org/apache/hadoop/test/MapredTestDriver.run (1,422 samples, 38.28%)</title><rect x="678.0" y="789" width="451.7" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="680.98" y="799.5" >org/apache/hadoop/test/MapredTestDriver.run</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.unJar (109 samples, 2.93%)</title><rect x="1131.9" y="885" width="34.6" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="1134.87" y="895.5" >or..</text>
+</g>
+<g >
+<title>clear_huge_page (71 samples, 1.91%)</title><rect x="545.5" y="773" width="22.6" height="15.0" fill="rgb(226,99,23)" rx="2" ry="2" />
+<text  x="548.53" y="783.5" >c..</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.getILoggerFactory (63 samples, 1.70%)</title><rect x="656.1" y="885" width="20.0" height="15.0" fill="rgb(220,71,17)" rx="2" ry="2" />
+<text  x="659.06" y="895.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/client/impl/BlockReaderRemote.read (48 samples, 1.29%)</title><rect x="867.9" y="469" width="15.3" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="870.92" y="479.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.get (217 samples, 5.84%)</title><rect x="682.1" y="613" width="68.9" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="685.11" y="623.5" >org/apa..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/NativeCrc32.calculateChunkedSumsByteArray (49 samples, 1.32%)</title><rect x="1080.7" y="453" width="15.6" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="1083.73" y="463.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/io/TestSequenceFile.main (1,420 samples, 38.22%)</title><rect x="678.6" y="645" width="451.1" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="681.61" y="655.5" >org/apache/hadoop/io/TestSequenceFile.main</text>
+</g>
+<g >
+<title>Compilation::install_code (41 samples, 1.10%)</title><rect x="343.8" y="757" width="13.1" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="346.83" y="767.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketInputStream.read (73 samples, 1.97%)</title><rect x="580.1" y="613" width="23.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="583.15" y="623.5" >o..</text>
+</g>
+<g >
+<title>CompileBroker::invoke_compiler_on_method (199 samples, 5.36%)</title><rect x="373.7" y="805" width="63.2" height="15.0" fill="rgb(228,105,25)" rx="2" ry="2" />
+<text  x="376.69" y="815.5" >Compil..</text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (203 samples, 5.46%)</title><rect x="373.1" y="885" width="64.4" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="376.05" y="895.5" >/usr/li..</text>
+</g>
+<g >
+<title>Compile::Optimize (171 samples, 4.60%)</title><rect x="208.2" y="773" width="54.3" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="211.20" y="783.5" >Compi..</text>
+</g>
+<g >
+<title>thread_native_entry (167 samples, 4.50%)</title><rect x="49.1" y="901" width="53.0" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="52.07" y="911.5" >threa..</text>
+</g>
+<g >
+<title>java/io/UnixFileSystem.canonicalize (57 samples, 1.53%)</title><rect x="1132.2" y="853" width="18.1" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="1135.19" y="863.5" ></text>
+</g>
+<g >
+<title>tcp_sendmsg (66 samples, 1.78%)</title><rect x="622.1" y="309" width="20.9" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="625.08" y="319.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.&lt;init&gt; (65 samples, 1.75%)</title><rect x="723.7" y="277" width="20.7" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="726.72" y="287.5" ></text>
+</g>
+<g >
+<title>__riscv_sys_riscv_flush_icache (58 samples, 1.56%)</title><rect x="25.9" y="597" width="18.4" height="15.0" fill="rgb(216,52,12)" rx="2" ry="2" />
+<text  x="28.88" y="607.5" ></text>
+</g>
+<g >
+<title>java/io/FilterInputStream.read (73 samples, 1.97%)</title><rect x="580.1" y="661" width="23.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="583.15" y="671.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Writer.append (155 samples, 4.17%)</title><rect x="1065.8" y="597" width="49.2" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="1068.81" y="607.5" >org/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/ByteArrayStrategy.readFromBlock (54 samples, 1.45%)</title><rect x="898.4" y="469" width="17.2" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="901.41" y="479.5" ></text>
+</g>
+<g >
+<title>[unknown] (259 samples, 6.97%)</title><rect x="373.1" y="917" width="82.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="376.05" y="927.5" >[unknown]</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (1,420 samples, 38.22%)</title><rect x="678.6" y="693" width="451.1" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="681.61" y="703.5" >java/lang/invoke/Invokers$Holder.invokeExact_MT</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/DataOutputBuffer$Buffer.write (75 samples, 2.02%)</title><rect x="894.3" y="549" width="23.8" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="897.29" y="559.5" >o..</text>
+</g>
+<g >
+<title>jdk/internal/vm/ScopedValueContainer.callWithoutScope (264 samples, 7.11%)</title><rect x="571.3" y="789" width="83.8" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="574.25" y="799.5" >jdk/inter..</text>
+</g>
+<g >
+<title>thread_native_entry (202 samples, 5.44%)</title><rect x="373.4" y="869" width="64.1" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="376.37" y="879.5" >thread_..</text>
+</g>
+<g >
+<title>java/io/FilterInputStream.read (73 samples, 1.97%)</title><rect x="580.1" y="645" width="23.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="583.15" y="655.5" >j..</text>
+</g>
+<g >
+<title>on_each_cpu_cond_mask (58 samples, 1.56%)</title><rect x="25.9" y="565" width="18.4" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="28.88" y="575.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (1,420 samples, 38.22%)</title><rect x="678.6" y="725" width="451.1" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="681.61" y="735.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invoke</text>
+</g>
+<g >
+<title>G1NMethodClosure::do_nmethod (59 samples, 1.59%)</title><rect x="25.9" y="725" width="18.7" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="28.88" y="735.5" ></text>
+</g>
+<g >
+<title>/usr/lib64/libc.so.6 (98 samples, 2.64%)</title><rect x="538.9" y="917" width="31.1" height="15.0" fill="rgb(222,79,18)" rx="2" ry="2" />
+<text  x="541.86" y="927.5" >/u..</text>
+</g>
+<g >
+<title>ret_from_exception (66 samples, 1.78%)</title><rect x="622.1" y="437" width="20.9" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="625.08" y="447.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::iterate_bytecodes_for_block (49 samples, 1.32%)</title><rect x="295.2" y="661" width="15.6" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="298.23" y="671.5" ></text>
+</g>
+<g >
+<title>JavaThread::thread_main_inner (163 samples, 4.39%)</title><rect x="49.1" y="869" width="51.7" height="15.0" fill="rgb(226,100,23)" rx="2" ry="2" />
+<text  x="52.07" y="879.5" >JavaT..</text>
+</g>
+<g >
+<title>java/util/concurrent/atomic/AtomicLong.compareAndSet (126 samples, 3.39%)</title><rect x="1022.6" y="533" width="40.0" height="15.0" fill="rgb(251,214,51)" rx="2" ry="2" />
+<text  x="1025.61" y="543.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (264 samples, 7.11%)</title><rect x="571.3" y="917" width="83.8" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="574.25" y="927.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.run (1,583 samples, 42.61%)</title><rect x="676.1" y="917" width="502.8" height="15.0" fill="rgb(219,66,15)" rx="2" ry="2" />
+<text  x="679.07" y="927.5" >org/apache/hadoop/util/RunJar.run</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.getProxyConstructor (71 samples, 1.91%)</title><rect x="723.7" y="357" width="22.6" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="726.72" y="367.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FSOutputSummer.write (90 samples, 2.42%)</title><rect x="1068.7" y="549" width="28.6" height="15.0" fill="rgb(231,123,29)" rx="2" ry="2" />
+<text  x="1071.66" y="559.5" >or..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.findClassOnClassPathOrNull (62 samples, 1.67%)</title><rect x="724.0" y="101" width="19.7" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="727.03" y="111.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.invokeStatic (264 samples, 7.11%)</title><rect x="571.3" y="869" width="83.8" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="574.25" y="879.5" >java/lang..</text>
+</g>
+<g >
+<title>java/io/DataInputStream.readFully (67 samples, 1.80%)</title><rect x="865.1" y="549" width="21.2" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="868.06" y="559.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/test/MapredTestDriver.main (1,427 samples, 38.41%)</title><rect x="676.4" y="805" width="453.3" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="679.39" y="815.5" >org/apache/hadoop/test/MapredTestDriver.main</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/Daemon$1.run (264 samples, 7.11%)</title><rect x="571.3" y="741" width="83.8" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="574.25" y="751.5" >org/apach..</text>
+</g>
+<g >
+<title>CompileBroker::compiler_thread_loop (200 samples, 5.38%)</title><rect x="373.4" y="821" width="63.5" height="15.0" fill="rgb(234,133,31)" rx="2" ry="2" />
+<text  x="376.37" y="831.5" >Compil..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketOutputStream$Writer.performIO (95 samples, 2.56%)</title><rect x="613.8" y="581" width="30.2" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="616.82" y="591.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile$Writer.append (155 samples, 4.17%)</title><rect x="1065.8" y="613" width="49.2" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="1068.81" y="623.5" >org/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DistributedFileSystem.initialize (140 samples, 3.77%)</title><rect x="705.6" y="517" width="44.5" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="708.61" y="527.5" >org/..</text>
+</g>
+<g >
+<title>Compilation::compile_java_method (157 samples, 4.23%)</title><rect x="294.0" y="757" width="49.8" height="15.0" fill="rgb(247,197,47)" rx="2" ry="2" />
+<text  x="296.96" y="767.5" >Compi..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetPublicMethods (64 samples, 1.72%)</title><rect x="723.7" y="213" width="20.3" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="726.72" y="223.5" ></text>
+</g>
+<g >
+<title>Thread::call_run (722 samples, 19.43%)</title><rect x="138.6" y="869" width="229.4" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="141.64" y="879.5" >Thread::call_run</text>
+</g>
+<g >
+<title>smp_call_function_many_cond (58 samples, 1.56%)</title><rect x="25.9" y="549" width="18.4" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="28.88" y="559.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/io/DataOutputBuffer$Buffer.write (68 samples, 1.83%)</title><rect x="864.7" y="565" width="21.6" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="867.75" y="575.5" >o..</text>
+</g>
+<g >
+<title>java/io/DataInputStream.readFully (75 samples, 2.02%)</title><rect x="894.3" y="533" width="23.8" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="897.29" y="543.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/DataOutputBuffer.write (75 samples, 2.02%)</title><rect x="894.3" y="565" width="23.8" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="897.29" y="575.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/SequenceFile.createWriter (41 samples, 1.10%)</title><rect x="1116.6" y="597" width="13.1" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="1119.63" y="607.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (1,427 samples, 38.41%)</title><rect x="676.4" y="853" width="453.3" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="679.39" y="863.5" >java/lang/invoke/Invokers$Holder.invokeExact_MT</text>
+</g>
+<g >
+<title>vfs_write (66 samples, 1.78%)</title><rect x="622.1" y="373" width="20.9" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="625.08" y="383.5" ></text>
+</g>
+<g >
+<title>__riscv_sys_write (66 samples, 1.78%)</title><rect x="622.1" y="405" width="20.9" height="15.0" fill="rgb(253,221,53)" rx="2" ry="2" />
+<text  x="625.08" y="415.5" ></text>
+</g>
+<g >
+<title>Compile::Optimize (62 samples, 1.67%)</title><rect x="399.4" y="757" width="19.7" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="402.42" y="767.5" ></text>
+</g>
+</g>
+</svg>

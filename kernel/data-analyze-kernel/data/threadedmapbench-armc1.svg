@@ -1,0 +1,2802 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="1606" onload="init(evt)" viewBox="0 0 1200 1606" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="1606.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="1589" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="1589" > </text>
+<g id="frames">
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (21 samples, 3.29%)</title><rect x="318.4" y="1093" width="38.8" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="321.39" y="1103.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketIOWithTimeout.doIO (15 samples, 2.35%)</title><rect x="37.7" y="1381" width="27.7" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="40.70" y="1391.5" >o..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.lambda$getProxyConstructor$0 (23 samples, 3.60%)</title><rect x="475.4" y="389" width="42.4" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="478.35" y="399.5" >jav..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (7 samples, 1.10%)</title><rect x="586.2" y="997" width="12.9" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="589.15" y="1007.5" ></text>
+</g>
+<g >
+<title>ciBytecodeStream::get_method (9 samples, 1.41%)</title><rect x="894.5" y="1253" width="16.7" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="897.54" y="1263.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::invoke (23 samples, 3.60%)</title><rect x="870.5" y="1269" width="42.5" height="15.0" fill="rgb(242,171,41)" rx="2" ry="2" />
+<text  x="873.53" y="1279.5" >Gra..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.&lt;init&gt; (22 samples, 3.44%)</title><rect x="475.4" y="357" width="40.6" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="478.35" y="367.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (18 samples, 2.82%)</title><rect x="202.1" y="1077" width="33.2" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="205.05" y="1087.5" >or..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader$1.hasMoreElements (8 samples, 1.25%)</title><rect x="135.6" y="1397" width="14.7" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
+<text  x="138.57" y="1407.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.createApplicationSubmissionContext (15 samples, 2.35%)</title><rect x="684.0" y="629" width="27.7" height="15.0" fill="rgb(220,71,16)" rx="2" ry="2" />
+<text  x="687.02" y="639.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.submitJob (80 samples, 12.52%)</title><rect x="628.6" y="1157" width="147.8" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="631.62" y="1167.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>el0t_64_sync_handler (8 samples, 1.25%)</title><rect x="1071.8" y="1365" width="14.8" height="15.0" fill="rgb(218,61,14)" rx="2" ry="2" />
+<text  x="1074.82" y="1375.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2.getProxy (9 samples, 1.41%)</title><rect x="412.6" y="421" width="16.6" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="415.57" y="431.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$Connection$PingInputStream.read (15 samples, 2.35%)</title><rect x="93.1" y="1461" width="27.7" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="96.10" y="1471.5" >o..</text>
+</g>
+<g >
+<title>vfs_write (12 samples, 1.88%)</title><rect x="43.2" y="1093" width="22.2" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="46.24" y="1103.5" >v..</text>
+</g>
+<g >
+<title>org/slf4j/impl/StaticLoggerBinder.&lt;clinit&gt; (11 samples, 1.72%)</title><rect x="150.3" y="1445" width="20.4" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="153.34" y="1455.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (80 samples, 12.52%)</title><rect x="628.6" y="997" width="147.8" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="631.62" y="1007.5" >java/security/Acce..</text>
+</g>
+<g >
+<title>sun/nio/ch/SelectorImpl.lockAndDoSelect (7 samples, 1.10%)</title><rect x="102.3" y="1253" width="13.0" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="105.33" y="1263.5" ></text>
+</g>
+<g >
+<title>java/lang/ClassLoader.loadClass (22 samples, 3.44%)</title><rect x="475.4" y="245" width="40.6" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="478.35" y="255.5" >jav..</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.getLogger (19 samples, 2.97%)</title><rect x="135.6" y="1509" width="35.1" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="138.57" y="1519.5" >or..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x0000002001204000.invokeInterface (10 samples, 1.56%)</title><rect x="560.3" y="693" width="18.5" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="563.30" y="703.5" ></text>
+</g>
+<g >
+<title>sun/nio/ch/IOUtil.write (14 samples, 2.19%)</title><rect x="39.5" y="1333" width="25.9" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="42.55" y="1343.5" >s..</text>
+</g>
+<g >
+<title>org/apache/hadoop/test/MapredTestDriver.main (329 samples, 51.49%)</title><rect x="170.7" y="1413" width="607.5" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="173.66" y="1423.5" >org/apache/hadoop/test/MapredTestDriver.main</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2$Invoker.invoke (10 samples, 1.56%)</title><rect x="560.3" y="629" width="18.5" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="563.30" y="639.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.&lt;clinit&gt; (20 samples, 3.13%)</title><rect x="133.7" y="1541" width="37.0" height="15.0" fill="rgb(230,117,27)" rx="2" ry="2" />
+<text  x="136.72" y="1551.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$8.run (7 samples, 1.10%)</title><rect x="586.2" y="901" width="12.9" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="589.15" y="911.5" ></text>
+</g>
+<g >
+<title>jdk/proxy2/$Proxy10.getClusterMetrics (10 samples, 1.56%)</title><rect x="560.3" y="661" width="18.5" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="563.30" y="671.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileUtil.copy (15 samples, 2.35%)</title><rect x="724.6" y="517" width="27.7" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="727.65" y="527.5" >o..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.referencedTypes (22 samples, 3.44%)</title><rect x="475.4" y="341" width="40.6" height="15.0" fill="rgb(207,12,3)" rx="2" ry="2" />
+<text  x="478.35" y="351.5" >jav..</text>
+</g>
+<g >
+<title>CompileBroker::compiler_thread_loop (106 samples, 16.59%)</title><rect x="846.5" y="1461" width="195.8" height="15.0" fill="rgb(234,133,31)" rx="2" ry="2" />
+<text  x="849.53" y="1471.5" >CompileBroker::compiler_t..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.init (93 samples, 14.55%)</title><rect x="384.9" y="1157" width="171.7" height="15.0" fill="rgb(235,140,33)" rx="2" ry="2" />
+<text  x="387.87" y="1167.5" >org/apache/hadoop/mapr..</text>
+</g>
+<g >
+<title>GraphBuilder::iterate_bytecodes_for_block (28 samples, 4.38%)</title><rect x="863.1" y="1285" width="51.8" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="866.15" y="1295.5" >Graph..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.submitJobInternal (80 samples, 12.52%)</title><rect x="628.6" y="1141" width="147.8" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="631.62" y="1151.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (12 samples, 1.88%)</title><rect x="556.6" y="1125" width="22.2" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="559.60" y="1135.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/retry/RetryInvocationHandler.invoke (11 samples, 1.72%)</title><rect x="558.5" y="853" width="20.3" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="561.45" y="863.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileUtil.copy (15 samples, 2.35%)</title><rect x="724.6" y="501" width="27.7" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="727.65" y="511.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (21 samples, 3.29%)</title><rect x="318.4" y="1141" width="38.8" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="321.39" y="1151.5" >org..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (76 samples, 11.89%)</title><rect x="636.0" y="789" width="140.4" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="639.01" y="799.5" >javax/security/au..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/NameNodeProxiesClient.createProxyWithClientProtocol (29 samples, 4.54%)</title><rect x="464.3" y="549" width="53.5" height="15.0" fill="rgb(216,54,13)" rx="2" ry="2" />
+<text  x="467.27" y="559.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/log4j/LogManager.&lt;clinit&gt; (11 samples, 1.72%)</title><rect x="150.3" y="1397" width="20.4" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="153.34" y="1407.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$6.run (14 samples, 2.19%)</title><rect x="202.1" y="917" width="25.8" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="205.05" y="927.5" >o..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.findClassOnClassPathOrNull (7 samples, 1.10%)</title><rect x="829.9" y="1397" width="12.9" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="832.91" y="1407.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.runJob (93 samples, 14.55%)</title><rect x="185.4" y="1189" width="171.8" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="188.43" y="1199.5" >org/apache/hadoop/mapr..</text>
+</g>
+<g >
+<title>java/lang/reflect/Constructor.newInstance (11 samples, 1.72%)</title><rect x="410.7" y="645" width="20.3" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="413.72" y="655.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/service/AbstractService.start (20 samples, 3.13%)</title><rect x="401.5" y="1045" width="36.9" height="15.0" fill="rgb(216,54,13)" rx="2" ry="2" />
+<text  x="404.49" y="1055.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$11.run (16 samples, 2.50%)</title><rect x="327.6" y="709" width="29.6" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="330.62" y="719.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2.getProxy (23 samples, 3.60%)</title><rect x="475.4" y="485" width="42.4" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="478.35" y="495.5" >org..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (12 samples, 1.88%)</title><rect x="556.6" y="1029" width="22.2" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="559.60" y="1039.5" >j..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (18 samples, 2.82%)</title><rect x="202.1" y="1061" width="33.2" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="205.05" y="1071.5" >ja..</text>
+</g>
+<g >
+<title>java/lang/CompoundEnumeration.next (8 samples, 1.25%)</title><rect x="135.6" y="1413" width="14.7" height="15.0" fill="rgb(227,102,24)" rx="2" ry="2" />
+<text  x="138.57" y="1423.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.create (9 samples, 1.41%)</title><rect x="732.0" y="453" width="16.7" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="735.03" y="463.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.defineClass (17 samples, 2.66%)</title><rect x="475.4" y="165" width="31.3" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="478.35" y="175.5" >jd..</text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath.getLoader (8 samples, 1.25%)</title><rect x="135.6" y="1333" width="14.7" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="138.57" y="1343.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.ensureInitialized (7 samples, 1.10%)</title><rect x="540.0" y="1093" width="12.9" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="542.98" y="1103.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobSubmitter.writeOldSplits (7 samples, 1.10%)</title><rect x="344.2" y="645" width="13.0" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="347.24" y="655.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/FileOutputFormat.setOutputPath (7 samples, 1.10%)</title><rect x="371.9" y="1173" width="13.0" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="374.94" y="1183.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/conf/Configuration.writeXml (11 samples, 1.72%)</title><rect x="754.2" y="613" width="20.3" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="757.19" y="623.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (31 samples, 4.85%)</title><rect x="235.3" y="981" width="57.2" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="238.29" y="991.5" >java/s..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.unJar (12 samples, 1.88%)</title><rect x="783.7" y="1509" width="22.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="786.74" y="1519.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobSubmitter.submitJobInternal (76 samples, 11.89%)</title><rect x="636.0" y="661" width="140.4" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="639.01" y="671.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (12 samples, 1.88%)</title><rect x="556.6" y="1141" width="22.2" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="559.60" y="1151.5" >o..</text>
+</g>
+<g >
+<title>BlockList::iterate_forward (12 samples, 1.88%)</title><rect x="953.6" y="1349" width="22.2" height="15.0" fill="rgb(232,125,29)" rx="2" ry="2" />
+<text  x="956.63" y="1359.5" >B..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.findClassOnClassPathOrNull (8 samples, 1.25%)</title><rect x="412.6" y="117" width="14.7" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="415.57" y="127.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.call (9 samples, 1.41%)</title><rect x="203.9" y="661" width="16.6" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="206.90" y="671.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (80 samples, 12.52%)</title><rect x="628.6" y="1013" width="147.8" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="631.62" y="1023.5" >java/security/Acce..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.monitorAndPrintJob (66 samples, 10.33%)</title><rect x="196.5" y="1173" width="121.9" height="15.0" fill="rgb(243,175,42)" rx="2" ry="2" />
+<text  x="199.51" y="1183.5" >org/apache/hado..</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/factories/impl/pb/RpcClientFactoryPBImpl.getClient (14 samples, 2.19%)</title><rect x="410.7" y="661" width="25.9" height="15.0" fill="rgb(217,58,14)" rx="2" ry="2" />
+<text  x="413.72" y="671.5" >o..</text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (15 samples, 2.35%)</title><rect x="410.7" y="773" width="27.7" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="413.72" y="783.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.call (9 samples, 1.41%)</title><rect x="560.3" y="597" width="16.6" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="563.30" y="607.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.newProxyInstance (9 samples, 1.41%)</title><rect x="412.6" y="405" width="16.6" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="415.57" y="415.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.getConnection (9 samples, 1.41%)</title><rect x="560.3" y="581" width="16.6" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="563.30" y="591.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (45 samples, 7.04%)</title><rect x="440.3" y="885" width="83.1" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="443.27" y="895.5" >javax/sec..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/Hdfs.&lt;init&gt; (44 samples, 6.89%)</title><rect x="442.1" y="597" width="81.3" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="445.11" y="607.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileContext.getFileContext (45 samples, 7.04%)</title><rect x="440.3" y="1013" width="83.1" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="443.27" y="1023.5" >org/apach..</text>
+</g>
+<g >
+<title>java/io/BufferedOutputStream.flushBuffer (15 samples, 2.35%)</title><rect x="37.7" y="1429" width="27.7" height="15.0" fill="rgb(211,27,6)" rx="2" ry="2" />
+<text  x="40.70" y="1439.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.getJobStatus (7 samples, 1.10%)</title><rect x="608.3" y="837" width="12.9" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="611.31" y="847.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (16 samples, 2.50%)</title><rect x="327.6" y="853" width="29.6" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="330.62" y="863.5" >ja..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (326 samples, 51.02%)</title><rect x="176.2" y="1301" width="602.0" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="179.20" y="1311.5" >java/lang/invoke/Invokers$Holder.invokeExact_MT</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (14 samples, 2.19%)</title><rect x="202.1" y="981" width="25.8" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="205.05" y="991.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200110f9e0.call (15 samples, 2.35%)</title><rect x="410.7" y="709" width="27.7" height="15.0" fill="rgb(251,215,51)" rx="2" ry="2" />
+<text  x="413.72" y="719.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (45 samples, 7.04%)</title><rect x="440.3" y="805" width="83.1" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="443.27" y="815.5" >org/apach..</text>
+</g>
+<g >
+<title>java/io/BufferedInputStream.read (15 samples, 2.35%)</title><rect x="93.1" y="1413" width="27.7" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="96.10" y="1423.5" >j..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (76 samples, 11.89%)</title><rect x="636.0" y="757" width="140.4" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="639.01" y="767.5" >java/security/Acc..</text>
+</g>
+<g >
+<title>java/io/DataInputStream.read (15 samples, 2.35%)</title><rect x="93.1" y="1429" width="27.7" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="96.10" y="1439.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (45 samples, 7.04%)</title><rect x="440.3" y="949" width="83.1" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="443.27" y="959.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (80 samples, 12.52%)</title><rect x="628.6" y="949" width="147.8" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="631.62" y="959.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (45 samples, 7.04%)</title><rect x="440.3" y="965" width="83.1" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="443.27" y="975.5" >org/apach..</text>
+</g>
+<g >
+<title>G1EvacuateRegionsBaseTask::work (30 samples, 4.69%)</title><rect x="1105.1" y="1461" width="55.4" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="1108.05" y="1471.5" >G1Eva..</text>
+</g>
+<g >
+<title>G1ParallelCleaningTask::work (11 samples, 1.72%)</title><rect x="1160.5" y="1461" width="20.3" height="15.0" fill="rgb(246,188,45)" rx="2" ry="2" />
+<text  x="1163.45" y="1471.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.invokeStatic (76 samples, 11.89%)</title><rect x="636.0" y="821" width="140.4" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="639.01" y="831.5" >java/lang/invoke/..</text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$1.next (8 samples, 1.25%)</title><rect x="135.6" y="1349" width="14.7" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="138.57" y="1359.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (80 samples, 12.52%)</title><rect x="628.6" y="965" width="147.8" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="631.62" y="975.5" >javax/security/aut..</text>
+</g>
+<g >
+<title>java/lang/Thread.runWith (22 samples, 3.44%)</title><rect x="24.8" y="1525" width="40.6" height="15.0" fill="rgb(218,61,14)" rx="2" ry="2" />
+<text  x="27.77" y="1535.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.updateStatus (9 samples, 1.41%)</title><rect x="606.5" y="1093" width="16.6" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="609.46" y="1103.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (12 samples, 1.88%)</title><rect x="556.6" y="1157" width="22.2" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="559.60" y="1167.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.submit (80 samples, 12.52%)</title><rect x="628.6" y="901" width="147.8" height="15.0" fill="rgb(211,32,7)" rx="2" ry="2" />
+<text  x="631.62" y="911.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x0000002001204000.invokeInterface (10 samples, 1.56%)</title><rect x="202.1" y="757" width="18.4" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="205.05" y="767.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (11 samples, 1.72%)</title><rect x="202.1" y="837" width="20.3" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="205.05" y="847.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.create (9 samples, 1.41%)</title><rect x="732.0" y="325" width="16.7" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="735.03" y="335.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobSubmitter.submitJobInternal (16 samples, 2.50%)</title><rect x="327.6" y="677" width="29.6" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="330.62" y="687.5" >or..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.getProxyConstructor (9 samples, 1.41%)</title><rect x="412.6" y="389" width="16.6" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="415.57" y="399.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.&lt;clinit&gt; (7 samples, 1.10%)</title><rect x="527.1" y="1109" width="12.9" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="530.06" y="1119.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (329 samples, 51.49%)</title><rect x="170.7" y="1461" width="607.5" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="173.66" y="1471.5" >java/lang/invoke/Invokers$Holder.invokeExact_MT</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.&lt;init&gt; (42 samples, 6.57%)</title><rect x="445.8" y="565" width="77.6" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="448.81" y="575.5" >org/apac..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (76 samples, 11.89%)</title><rect x="636.0" y="837" width="140.4" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="639.01" y="847.5" >java/lang/invoke/..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (16 samples, 2.50%)</title><rect x="327.6" y="821" width="29.6" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="330.62" y="831.5" >ja..</text>
+</g>
+<g >
+<title>tcp_sendmsg_locked (12 samples, 1.88%)</title><rect x="43.2" y="997" width="22.2" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="46.24" y="1007.5" >t..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (10 samples, 1.56%)</title><rect x="560.3" y="757" width="18.5" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="563.30" y="767.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.&lt;init&gt; (8 samples, 1.25%)</title><rect x="412.6" y="293" width="14.7" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="415.57" y="303.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DataStreamer.run (9 samples, 1.41%)</title><rect x="69.1" y="1541" width="16.6" height="15.0" fill="rgb(232,125,29)" rx="2" ry="2" />
+<text  x="72.09" y="1551.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$Connection$RpcRequestSender.run (21 samples, 3.29%)</title><rect x="26.6" y="1509" width="38.8" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="29.62" y="1519.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.submitJob (21 samples, 3.29%)</title><rect x="318.4" y="1173" width="38.8" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="321.39" y="1183.5" >org..</text>
+</g>
+<g >
+<title>java/lang/Class.getMethods (8 samples, 1.25%)</title><rect x="412.6" y="261" width="14.7" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="415.57" y="271.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/RMProxy$1.run (15 samples, 2.35%)</title><rect x="410.7" y="693" width="27.7" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="413.72" y="703.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystemLinkResolver.resolve (9 samples, 1.41%)</title><rect x="732.0" y="405" width="16.7" height="15.0" fill="rgb(218,61,14)" rx="2" ry="2" />
+<text  x="735.03" y="415.5" ></text>
+</g>
+<g >
+<title>G1EvacuateRegionsTask::evacuate_live_objects (15 samples, 2.35%)</title><rect x="1105.1" y="1445" width="27.7" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1108.05" y="1455.5" >G..</text>
+</g>
+<g >
+<title>sock_write_iter (12 samples, 1.88%)</title><rect x="43.2" y="1061" width="22.2" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="46.24" y="1071.5" >s..</text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (14 samples, 2.19%)</title><rect x="202.1" y="997" width="25.8" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="205.05" y="1007.5" >j..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (12 samples, 1.88%)</title><rect x="556.6" y="1013" width="22.2" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="559.60" y="1023.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.runJob (107 samples, 16.74%)</title><rect x="578.8" y="1173" width="197.6" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="581.76" y="1183.5" >org/apache/hadoop/mapred/..</text>
+</g>
+<g >
+<title>thread_native_entry (188 samples, 29.42%)</title><rect x="842.8" y="1509" width="347.2" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="845.83" y="1519.5" >thread_native_entry</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketOutputStream.write (15 samples, 2.35%)</title><rect x="37.7" y="1413" width="27.7" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="40.70" y="1423.5" >o..</text>
+</g>
+<g >
+<title>el0_svc_common.constprop.0 (12 samples, 1.88%)</title><rect x="43.2" y="1157" width="22.2" height="15.0" fill="rgb(231,119,28)" rx="2" ry="2" />
+<text  x="46.24" y="1167.5" >e..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.&lt;init&gt; (71 samples, 11.11%)</title><rect x="395.9" y="1077" width="131.2" height="15.0" fill="rgb(222,82,19)" rx="2" ry="2" />
+<text  x="398.95" y="1087.5" >org/apache/hadoo..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$1.run (21 samples, 3.29%)</title><rect x="318.4" y="949" width="38.8" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="321.39" y="959.5" >org..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (21 samples, 3.29%)</title><rect x="318.4" y="997" width="38.8" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="321.39" y="1007.5" >jav..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (8 samples, 1.25%)</title><rect x="608.3" y="1029" width="14.8" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="611.31" y="1039.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (10 samples, 1.56%)</title><rect x="202.1" y="789" width="18.4" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="205.05" y="799.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::try_inline (8 samples, 1.25%)</title><rect x="874.2" y="1173" width="14.8" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="877.23" y="1183.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Cluster.&lt;init&gt; (92 samples, 14.40%)</title><rect x="386.7" y="1125" width="169.9" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="389.71" y="1135.5" >org/apache/hadoop/map..</text>
+</g>
+<g >
+<title>ksys_write (12 samples, 1.88%)</title><rect x="43.2" y="1109" width="22.2" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="46.24" y="1119.5" >k..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$3.run (12 samples, 1.88%)</title><rect x="556.6" y="965" width="22.2" height="15.0" fill="rgb(237,148,35)" rx="2" ry="2" />
+<text  x="559.60" y="975.5" >o..</text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.invokeStatic (80 samples, 12.52%)</title><rect x="628.6" y="1061" width="147.8" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="631.62" y="1071.5" >java/lang/invoke/D..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x00000020013a0400.invokeStatic (21 samples, 3.29%)</title><rect x="318.4" y="1077" width="38.8" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="321.39" y="1087.5" >jav..</text>
+</g>
+<g >
+<title>java/io/DataOutputStream.flush (15 samples, 2.35%)</title><rect x="37.7" y="1477" width="27.7" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="40.70" y="1487.5" >j..</text>
+</g>
+<g >
+<title>Java_java_lang_ClassLoader_defineClass1 (8 samples, 1.25%)</title><rect x="475.4" y="101" width="14.7" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="478.35" y="111.5" ></text>
+</g>
+<g >
+<title>el0t_64_sync (8 samples, 1.25%)</title><rect x="1071.8" y="1381" width="14.8" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="1074.82" y="1391.5" ></text>
+</g>
+<g >
+<title>java/io/FilterInputStream.read (13 samples, 2.03%)</title><rect x="96.8" y="1349" width="24.0" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="99.79" y="1359.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (12 samples, 1.88%)</title><rect x="556.6" y="981" width="22.2" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="559.60" y="991.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketOutputStream$Writer.performIO (15 samples, 2.35%)</title><rect x="37.7" y="1365" width="27.7" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="40.70" y="1375.5" >o..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (326 samples, 51.02%)</title><rect x="176.2" y="1317" width="602.0" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="179.20" y="1327.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (38 samples, 5.95%)</title><rect x="235.3" y="1093" width="70.2" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="238.29" y="1103.5" >org/apa..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (45 samples, 7.04%)</title><rect x="440.3" y="981" width="83.1" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="443.27" y="991.5" >org/apach..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x00000020013a0400.invokeStatic (38 samples, 5.95%)</title><rect x="235.3" y="1029" width="70.2" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="238.29" y="1039.5" >java/la..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (7 samples, 1.10%)</title><rect x="608.3" y="917" width="12.9" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="611.31" y="927.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (16 samples, 2.50%)</title><rect x="327.6" y="789" width="29.6" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="330.62" y="799.5" >ja..</text>
+</g>
+<g >
+<title>el0t_64_sync (12 samples, 1.88%)</title><rect x="43.2" y="1221" width="22.2" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="46.24" y="1231.5" >e..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobSubmitter.writeConf (11 samples, 1.72%)</title><rect x="754.2" y="645" width="20.3" height="15.0" fill="rgb(225,96,22)" rx="2" ry="2" />
+<text  x="757.19" y="655.5" ></text>
+</g>
+<g >
+<title>java/io/BufferedInputStream.implRead (15 samples, 2.35%)</title><rect x="93.1" y="1397" width="27.7" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="96.10" y="1407.5" >j..</text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (7 samples, 1.10%)</title><rect x="608.3" y="965" width="12.9" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="611.31" y="975.5" ></text>
+</g>
+<g >
+<title>jdk/proxy2/$Proxy18.getJobReport (14 samples, 2.19%)</title><rect x="242.7" y="709" width="25.8" height="15.0" fill="rgb(238,154,37)" rx="2" ry="2" />
+<text  x="245.68" y="719.5" >j..</text>
+</g>
+<g >
+<title>G1ParEvacuateFollowersClosure::do_void (15 samples, 2.35%)</title><rect x="1105.1" y="1429" width="27.7" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="1108.05" y="1439.5" >G..</text>
+</g>
+<g >
+<title>Compiler::compile_method (96 samples, 15.02%)</title><rect x="846.5" y="1429" width="177.3" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="849.53" y="1439.5" >Compiler::compile_method</text>
+</g>
+<g >
+<title>jdk/internal/loader/ClassLoaders$AppClassLoader.loadClass (7 samples, 1.10%)</title><rect x="829.9" y="1445" width="12.9" height="15.0" fill="rgb(248,199,47)" rx="2" ry="2" />
+<text  x="832.91" y="1455.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (10 samples, 1.56%)</title><rect x="202.1" y="821" width="18.4" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="205.05" y="831.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (10 samples, 1.56%)</title><rect x="202.1" y="805" width="18.4" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="205.05" y="815.5" ></text>
+</g>
+<g >
+<title>SystemDictionary::resolve_class_from_stream (8 samples, 1.25%)</title><rect x="475.4" y="53" width="14.7" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="478.35" y="63.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.getJobStatus (7 samples, 1.10%)</title><rect x="608.3" y="853" width="12.9" height="15.0" fill="rgb(221,78,18)" rx="2" ry="2" />
+<text  x="611.31" y="863.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.getJobCounters (7 samples, 1.10%)</title><rect x="586.2" y="853" width="12.9" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="589.15" y="863.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$JarLoader.getJarFile (7 samples, 1.10%)</title><rect x="137.4" y="1141" width="12.9" height="15.0" fill="rgb(236,144,34)" rx="2" ry="2" />
+<text  x="140.42" y="1151.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (76 samples, 11.89%)</title><rect x="636.0" y="805" width="140.4" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="639.01" y="815.5" >javax/security/au..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x0000002001204800.invoke (10 samples, 1.56%)</title><rect x="560.3" y="709" width="18.5" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="563.30" y="719.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketInputStream.read (12 samples, 1.88%)</title><rect x="98.6" y="1333" width="22.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="101.64" y="1343.5" >o..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (7 samples, 1.10%)</title><rect x="586.2" y="933" width="12.9" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="589.15" y="943.5" ></text>
+</g>
+<g >
+<title>java/util/zip/ZipFile$Source.get (7 samples, 1.10%)</title><rect x="137.4" y="1061" width="12.9" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="140.42" y="1071.5" ></text>
+</g>
+<g >
+<title>Compilation::install_code (9 samples, 1.41%)</title><rect x="1007.2" y="1381" width="16.6" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="1010.18" y="1391.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.call (7 samples, 1.10%)</title><rect x="246.4" y="645" width="12.9" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="249.37" y="655.5" ></text>
+</g>
+<g >
+<title>java/lang/Class.getDeclaredMethods0 (8 samples, 1.25%)</title><rect x="412.6" y="197" width="14.7" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="415.57" y="207.5" ></text>
+</g>
+<g >
+<title>jvm_define_class_common (8 samples, 1.25%)</title><rect x="475.4" y="69" width="14.7" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="478.35" y="79.5" ></text>
+</g>
+<g >
+<title>tcp_write_xmit (12 samples, 1.88%)</title><rect x="43.2" y="949" width="22.2" height="15.0" fill="rgb(238,152,36)" rx="2" ry="2" />
+<text  x="46.24" y="959.5" >t..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (7 samples, 1.10%)</title><rect x="586.2" y="1013" width="12.9" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="589.15" y="1023.5" ></text>
+</g>
+<g >
+<title>java/lang/ClassLoader.defineClass1 (14 samples, 2.19%)</title><rect x="475.4" y="117" width="25.8" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="478.35" y="127.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ToolRunner.run (326 samples, 51.02%)</title><rect x="176.2" y="1221" width="602.0" height="15.0" fill="rgb(236,145,34)" rx="2" ry="2" />
+<text  x="179.20" y="1231.5" >org/apache/hadoop/util/ToolRunner.run</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.isComplete (9 samples, 1.41%)</title><rect x="606.5" y="1109" width="16.6" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="609.46" y="1119.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.main (355 samples, 55.56%)</title><rect x="170.7" y="1541" width="655.5" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="173.66" y="1551.5" >org/apache/hadoop/util/RunJar.main</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (18 samples, 2.82%)</title><rect x="202.1" y="1013" width="33.2" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="205.05" y="1023.5" >ja..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x0000002001010400.invokeStatic (329 samples, 51.49%)</title><rect x="170.7" y="1429" width="607.5" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="173.66" y="1439.5" >java/lang/invoke/LambdaForm$DMH.0x0000002001010400.invokeStatic</text>
+</g>
+<g >
+<title>GraphBuilder::iterate_all_blocks (7 samples, 1.10%)</title><rect x="874.2" y="1141" width="13.0" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="877.23" y="1151.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (15 samples, 2.35%)</title><rect x="410.7" y="741" width="27.7" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="413.72" y="751.5" >j..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (38 samples, 5.95%)</title><rect x="235.3" y="1045" width="70.2" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="238.29" y="1055.5" >java/la..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (15 samples, 2.35%)</title><rect x="410.7" y="789" width="27.7" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="413.72" y="799.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.monitorAndPrintJob (24 samples, 3.76%)</title><rect x="584.3" y="1157" width="44.3" height="15.0" fill="rgb(243,175,42)" rx="2" ry="2" />
+<text  x="587.30" y="1167.5" >org/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.updateStatus (38 samples, 5.95%)</title><rect x="235.3" y="1109" width="70.2" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="238.29" y="1119.5" >org/apa..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.create (9 samples, 1.41%)</title><rect x="732.0" y="341" width="16.7" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="735.03" y="351.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ProgramDriver.run (327 samples, 51.17%)</title><rect x="174.4" y="1381" width="603.8" height="15.0" fill="rgb(248,200,48)" rx="2" ry="2" />
+<text  x="177.35" y="1391.5" >org/apache/hadoop/util/ProgramDriver.run</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobSubmitter.writeSplits (7 samples, 1.10%)</title><rect x="344.2" y="661" width="13.0" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="347.24" y="671.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (15 samples, 2.35%)</title><rect x="410.7" y="837" width="27.7" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="413.72" y="847.5" >j..</text>
+</g>
+<g >
+<title>do_el0_svc (12 samples, 1.88%)</title><rect x="43.2" y="1173" width="22.2" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="46.24" y="1183.5" >d..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (326 samples, 51.02%)</title><rect x="176.2" y="1333" width="602.0" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="179.20" y="1343.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invoke</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/api/impl/pb/client/ApplicationClientProtocolPBClientImpl.getClusterMetrics (10 samples, 1.56%)</title><rect x="560.3" y="677" width="18.5" height="15.0" fill="rgb(235,142,34)" rx="2" ry="2" />
+<text  x="563.30" y="687.5" ></text>
+</g>
+<g >
+<title>tcp_sendmsg (12 samples, 1.88%)</title><rect x="43.2" y="1013" width="22.2" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="46.24" y="1023.5" >t..</text>
+</g>
+<g >
+<title>java/lang/ClassLoader.loadClass (7 samples, 1.10%)</title><rect x="829.9" y="1461" width="12.9" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="832.91" y="1471.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$3.run (7 samples, 1.10%)</title><rect x="137.4" y="1269" width="12.9" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="140.42" y="1279.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.getJobStatus (30 samples, 4.69%)</title><rect x="235.3" y="869" width="55.4" height="15.0" fill="rgb(221,78,18)" rx="2" ry="2" />
+<text  x="238.29" y="879.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DistributedFileSystem$8.doCall (9 samples, 1.41%)</title><rect x="732.0" y="373" width="16.7" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="735.03" y="383.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (18 samples, 2.82%)</title><rect x="202.1" y="1109" width="33.2" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="205.05" y="1119.5" >or..</text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (21 samples, 3.29%)</title><rect x="318.4" y="1029" width="38.8" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="321.39" y="1039.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobResourceUploader.uploadResources (19 samples, 2.97%)</title><rect x="719.1" y="629" width="35.1" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="722.11" y="639.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2$Invoker.invoke (9 samples, 1.41%)</title><rect x="203.9" y="693" width="16.6" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="206.90" y="703.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClassOrNull (8 samples, 1.25%)</title><rect x="412.6" y="133" width="14.7" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="415.57" y="143.5" ></text>
+</g>
+<g >
+<title>LIR_Assembler::emit_code (10 samples, 1.56%)</title><rect x="929.6" y="1349" width="18.5" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="932.62" y="1359.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.isComplete (38 samples, 5.95%)</title><rect x="235.3" y="1125" width="70.2" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="238.29" y="1135.5" >org/apa..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (17 samples, 2.66%)</title><rect x="237.1" y="805" width="31.4" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="240.14" y="815.5" >jd..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (21 samples, 3.29%)</title><rect x="318.4" y="1125" width="38.8" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="321.39" y="1135.5" >org..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (21 samples, 3.29%)</title><rect x="318.4" y="1061" width="38.8" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="321.39" y="1071.5" >jav..</text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$JarLoader.&lt;init&gt; (7 samples, 1.10%)</title><rect x="137.4" y="1237" width="12.9" height="15.0" fill="rgb(220,71,17)" rx="2" ry="2" />
+<text  x="140.42" y="1247.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/DefaultNoHARMFailoverProxyProvider.init (16 samples, 2.50%)</title><rect x="408.9" y="917" width="29.5" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="411.87" y="927.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/NameNodeProxiesClient.createNonHAProxyWithClientProtocol (29 samples, 4.54%)</title><rect x="464.3" y="533" width="53.5" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="467.27" y="543.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YarnClientProtocolProvider.create (76 samples, 11.89%)</title><rect x="386.7" y="1093" width="140.4" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="389.71" y="1103.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>PlatformMonitor::wait (12 samples, 1.88%)</title><rect x="1068.1" y="1429" width="22.2" height="15.0" fill="rgb(228,106,25)" rx="2" ry="2" />
+<text  x="1071.12" y="1439.5" >P..</text>
+</g>
+<g >
+<title>WorkerThread::run (52 samples, 8.14%)</title><rect x="1092.1" y="1477" width="96.1" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="1095.13" y="1487.5" >WorkerThrea..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (30 samples, 4.69%)</title><rect x="235.3" y="965" width="55.4" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="238.29" y="975.5" >java/..</text>
+</g>
+<g >
+<title>java/io/BufferedInputStream.fill (14 samples, 2.19%)</title><rect x="94.9" y="1365" width="25.9" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="97.95" y="1375.5" >j..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (45 samples, 7.04%)</title><rect x="440.3" y="853" width="83.1" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="443.27" y="863.5" >java/secu..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.getTaskCompletionEvents (14 samples, 2.19%)</title><rect x="202.1" y="885" width="25.8" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="205.05" y="895.5" >o..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (16 samples, 2.50%)</title><rect x="239.0" y="789" width="29.5" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="241.98" y="799.5" >jd..</text>
+</g>
+<g >
+<title>java/util/jar/JarFile.&lt;init&gt; (7 samples, 1.10%)</title><rect x="137.4" y="1125" width="12.9" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="140.42" y="1135.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.unJar (12 samples, 1.88%)</title><rect x="783.7" y="1493" width="22.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="786.74" y="1503.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobResourceUploader.uploadJobJar (17 samples, 2.66%)</title><rect x="722.8" y="597" width="31.4" height="15.0" fill="rgb(214,43,10)" rx="2" ry="2" />
+<text  x="725.80" y="607.5" >or..</text>
+</g>
+<g >
+<title>all (639 samples, 100%)</title><rect x="10.0" y="1557" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="1567.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (44 samples, 6.89%)</title><rect x="442.1" y="645" width="81.3" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="445.11" y="655.5" >java/lang..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProxy (10 samples, 1.56%)</title><rect x="412.6" y="517" width="18.4" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="415.57" y="527.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/io/retry/RetryInvocationHandler.invokeMethod (10 samples, 1.56%)</title><rect x="560.3" y="789" width="18.5" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="563.30" y="799.5" ></text>
+</g>
+<g >
+<title>G1RootProcessor::evacuate_roots (7 samples, 1.10%)</title><rect x="1147.5" y="1429" width="13.0" height="15.0" fill="rgb(232,128,30)" rx="2" ry="2" />
+<text  x="1150.53" y="1439.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (76 samples, 11.89%)</title><rect x="636.0" y="869" width="140.4" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="639.01" y="879.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.invokeStatic (45 samples, 7.04%)</title><rect x="440.3" y="917" width="83.1" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="443.27" y="927.5" >java/lang..</text>
+</g>
+<g >
+<title>Java_sun_nio_ch_SocketDispatcher_write0 (12 samples, 1.88%)</title><rect x="43.2" y="1253" width="22.2" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="46.24" y="1263.5" >J..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ResourceMgrDelegate.getClusterMetrics (11 samples, 1.72%)</title><rect x="558.5" y="901" width="20.3" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="561.45" y="911.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (9 samples, 1.41%)</title><rect x="606.5" y="1077" width="16.6" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="609.46" y="1087.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.submitJob (27 samples, 4.23%)</title><rect x="661.9" y="645" width="49.8" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="664.86" y="655.5" >org/a..</text>
+</g>
+<g >
+<title>CodeCacheUnloadingTask::claim_nmethods (7 samples, 1.10%)</title><rect x="1164.1" y="1429" width="13.0" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="1167.15" y="1439.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (10 samples, 1.56%)</title><rect x="560.3" y="725" width="18.5" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="563.30" y="735.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobResourceUploader.uploadResourcesInternal (19 samples, 2.97%)</title><rect x="719.1" y="613" width="35.1" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="722.11" y="623.5" >or..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x000000200111e000.invoke (11 samples, 1.72%)</title><rect x="410.7" y="565" width="20.3" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="413.72" y="575.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.getJobCounters (7 samples, 1.10%)</title><rect x="586.2" y="869" width="12.9" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="589.15" y="879.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketIOWithTimeout.doIO (12 samples, 1.88%)</title><rect x="98.6" y="1301" width="22.2" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="101.64" y="1311.5" >o..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (80 samples, 12.52%)</title><rect x="628.6" y="1045" width="147.8" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="631.62" y="1055.5" >javax/security/aut..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Cluster.initialize (76 samples, 11.89%)</title><rect x="386.7" y="1109" width="140.4" height="15.0" fill="rgb(248,199,47)" rx="2" ry="2" />
+<text  x="389.71" y="1119.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$JarLoader$1.run (7 samples, 1.10%)</title><rect x="137.4" y="1157" width="12.9" height="15.0" fill="rgb(223,83,20)" rx="2" ry="2" />
+<text  x="140.42" y="1167.5" ></text>
+</g>
+<g >
+<title>java/util/zip/ZipFile$CleanableResource.&lt;init&gt; (7 samples, 1.10%)</title><rect x="137.4" y="1077" width="12.9" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="140.42" y="1087.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ShutdownHookManager.addShutdownHook (10 samples, 1.56%)</title><rect x="807.7" y="1509" width="18.5" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="810.75" y="1519.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/ClientRMProxy.createRMProxy (20 samples, 3.13%)</title><rect x="401.5" y="981" width="36.9" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="404.49" y="991.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (21 samples, 3.29%)</title><rect x="318.4" y="1109" width="38.8" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="321.39" y="1119.5" >org..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetDeclaredMethods (22 samples, 3.44%)</title><rect x="475.4" y="277" width="40.6" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="478.35" y="287.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (10 samples, 1.56%)</title><rect x="412.6" y="469" width="18.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="415.57" y="479.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (80 samples, 12.52%)</title><rect x="628.6" y="1125" width="147.8" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="631.62" y="1135.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath.getLoader (7 samples, 1.10%)</title><rect x="137.4" y="1317" width="12.9" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="140.42" y="1327.5" ></text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.getILoggerFactory (19 samples, 2.97%)</title><rect x="135.6" y="1493" width="35.1" height="15.0" fill="rgb(220,71,17)" rx="2" ry="2" />
+<text  x="138.57" y="1503.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileContext.getFileContext (45 samples, 7.04%)</title><rect x="440.3" y="1029" width="83.1" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="443.27" y="1039.5" >org/apach..</text>
+</g>
+<g >
+<title>java/lang/Thread.run (22 samples, 3.44%)</title><rect x="24.8" y="1541" width="40.6" height="15.0" fill="rgb(229,114,27)" rx="2" ry="2" />
+<text  x="27.77" y="1551.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/log4j/helpers/OptionConverter.selectAndConfigure (8 samples, 1.25%)</title><rect x="155.9" y="1381" width="14.8" height="15.0" fill="rgb(207,10,2)" rx="2" ry="2" />
+<text  x="158.88" y="1391.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/FileInputFormat.getSplits (7 samples, 1.10%)</title><rect x="344.2" y="629" width="13.0" height="15.0" fill="rgb(229,111,26)" rx="2" ry="2" />
+<text  x="347.24" y="639.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (16 samples, 2.50%)</title><rect x="327.6" y="741" width="29.6" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="330.62" y="751.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (9 samples, 1.41%)</title><rect x="606.5" y="1045" width="16.6" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="609.46" y="1055.5" ></text>
+</g>
+<g >
+<title>java/lang/ClassLoader.defineClass (14 samples, 2.19%)</title><rect x="475.4" y="133" width="25.8" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="478.35" y="143.5" >j..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x00000020010c0800.invoke (329 samples, 51.49%)</title><rect x="170.7" y="1445" width="607.5" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="173.66" y="1455.5" >java/lang/invoke/LambdaForm$MH.0x00000020010c0800.invoke</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.getLogger (19 samples, 2.97%)</title><rect x="135.6" y="1525" width="35.1" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="138.57" y="1535.5" >or..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (76 samples, 11.89%)</title><rect x="636.0" y="725" width="140.4" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="639.01" y="735.5" >javax/security/au..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$IpcStreams.flush (15 samples, 2.35%)</title><rect x="37.7" y="1493" width="27.7" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="40.70" y="1503.5" >o..</text>
+</g>
+<g >
+<title>el0t_64_sync_handler (12 samples, 1.88%)</title><rect x="43.2" y="1205" width="22.2" height="15.0" fill="rgb(218,61,14)" rx="2" ry="2" />
+<text  x="46.24" y="1215.5" >e..</text>
+</g>
+<g >
+<title>Compilation::build_hir (44 samples, 6.89%)</title><rect x="846.5" y="1365" width="81.3" height="15.0" fill="rgb(217,58,14)" rx="2" ry="2" />
+<text  x="849.53" y="1375.5" >Compilati..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.monitorAndPrintJob (66 samples, 10.33%)</title><rect x="196.5" y="1141" width="121.9" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="199.51" y="1151.5" >org/apache/hado..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (7 samples, 1.10%)</title><rect x="586.2" y="965" width="12.9" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="589.15" y="975.5" ></text>
+</g>
+<g >
+<title>G1EvacuateRegionsTask::scan_roots (15 samples, 2.35%)</title><rect x="1132.8" y="1445" width="27.7" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="1135.75" y="1455.5" >G..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.call (7 samples, 1.10%)</title><rect x="246.4" y="661" width="12.9" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="249.37" y="671.5" ></text>
+</g>
+<g >
+<title>IR::IR (36 samples, 5.63%)</title><rect x="852.1" y="1349" width="66.4" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="855.07" y="1359.5" >IR::IR</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x00000020013a0400.invokeStatic (18 samples, 2.82%)</title><rect x="202.1" y="1045" width="33.2" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="205.05" y="1055.5" >ja..</text>
+</g>
+<g >
+<title>sun/nio/ch/IOUtil.writeFromNativeBuffer (13 samples, 2.03%)</title><rect x="41.4" y="1301" width="24.0" height="15.0" fill="rgb(215,50,12)" rx="2" ry="2" />
+<text  x="44.39" y="1311.5" >s..</text>
+</g>
+<g >
+<title>__tcp_transmit_skb (10 samples, 1.56%)</title><rect x="43.2" y="933" width="18.5" height="15.0" fill="rgb(238,152,36)" rx="2" ry="2" />
+<text  x="46.24" y="943.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketIOWithTimeout$SelectorPool.select (10 samples, 1.56%)</title><rect x="98.6" y="1285" width="18.5" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="101.64" y="1295.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/io/retry/RetryInvocationHandler$Call.invokeOnce (11 samples, 1.72%)</title><rect x="558.5" y="837" width="20.3" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="561.45" y="847.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (14 samples, 2.19%)</title><rect x="202.1" y="949" width="25.8" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="205.05" y="959.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (10 samples, 1.56%)</title><rect x="412.6" y="453" width="18.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="415.57" y="463.5" ></text>
+</g>
+<g >
+<title>Compilation::compile_java_method (86 samples, 13.46%)</title><rect x="846.5" y="1381" width="158.8" height="15.0" fill="rgb(247,197,47)" rx="2" ry="2" />
+<text  x="849.53" y="1391.5" >Compilation::compile..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$Connection.receiveRpcResponse (21 samples, 3.29%)</title><rect x="85.7" y="1525" width="38.8" height="15.0" fill="rgb(239,156,37)" rx="2" ry="2" />
+<text  x="88.71" y="1535.5" >org..</text>
+</g>
+<g >
+<title>java/lang/Class.forName (7 samples, 1.10%)</title><rect x="829.9" y="1509" width="12.9" height="15.0" fill="rgb(216,52,12)" rx="2" ry="2" />
+<text  x="832.91" y="1519.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DistributedFileSystem$8.doCall (9 samples, 1.41%)</title><rect x="732.0" y="389" width="16.7" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="735.03" y="399.5" ></text>
+</g>
+<g >
+<title>Monitor::wait_without_safepoint_check (13 samples, 2.03%)</title><rect x="1066.3" y="1445" width="24.0" height="15.0" fill="rgb(249,204,48)" rx="2" ry="2" />
+<text  x="1069.28" y="1455.5" >M..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClass (22 samples, 3.44%)</title><rect x="475.4" y="213" width="40.6" height="15.0" fill="rgb(206,7,1)" rx="2" ry="2" />
+<text  x="478.35" y="223.5" >jdk..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (15 samples, 2.35%)</title><rect x="410.7" y="757" width="27.7" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="413.72" y="767.5" >j..</text>
+</g>
+<g >
+<title>java/security/AccessController.getStackAccessControlContext (7 samples, 1.10%)</title><rect x="292.5" y="965" width="13.0" height="15.0" fill="rgb(242,174,41)" rx="2" ry="2" />
+<text  x="295.54" y="975.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClass (7 samples, 1.10%)</title><rect x="829.9" y="1429" width="12.9" height="15.0" fill="rgb(206,7,1)" rx="2" ry="2" />
+<text  x="832.91" y="1439.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (76 samples, 11.89%)</title><rect x="636.0" y="773" width="140.4" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="639.01" y="783.5" >java/security/Acc..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileContext.getAbstractFileSystem (45 samples, 7.04%)</title><rect x="440.3" y="997" width="83.1" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="443.27" y="1007.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.getTaskCompletionEvents (14 samples, 2.19%)</title><rect x="202.1" y="869" width="25.8" height="15.0" fill="rgb(220,71,16)" rx="2" ry="2" />
+<text  x="205.05" y="879.5" >o..</text>
+</g>
+<g >
+<title>WatcherThread::run (18 samples, 2.82%)</title><rect x="1058.9" y="1477" width="33.2" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="1061.89" y="1487.5" >Wa..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (16 samples, 2.50%)</title><rect x="327.6" y="805" width="29.6" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="330.62" y="815.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketInputStream.read (12 samples, 1.88%)</title><rect x="98.6" y="1317" width="22.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="101.64" y="1327.5" >o..</text>
+</g>
+<g >
+<title>ciEnv::register_method (9 samples, 1.41%)</title><rect x="1007.2" y="1365" width="16.6" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="1010.18" y="1375.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ThreadedMapBenchmark.generateInputData (221 samples, 34.59%)</title><rect x="368.2" y="1189" width="408.2" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="371.25" y="1199.5" >org/apache/hadoop/mapred/ThreadedMapBenchmark.generateI..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetPublicMethods (22 samples, 3.44%)</title><rect x="475.4" y="293" width="40.6" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="478.35" y="303.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileContext$2.run (45 samples, 7.04%)</title><rect x="440.3" y="773" width="83.1" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="443.27" y="783.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (10 samples, 1.56%)</title><rect x="412.6" y="485" width="18.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="415.57" y="495.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClassOrNull (22 samples, 3.44%)</title><rect x="475.4" y="197" width="40.6" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="478.35" y="207.5" >jdk..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (7 samples, 1.10%)</title><rect x="586.2" y="1093" width="12.9" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="589.15" y="1103.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (7 samples, 1.10%)</title><rect x="586.2" y="1061" width="12.9" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="589.15" y="1071.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (80 samples, 12.52%)</title><rect x="628.6" y="1029" width="147.8" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="631.62" y="1039.5" >javax/security/aut..</text>
+</g>
+<g >
+<title>GraphBuilder::try_inline_full (12 samples, 1.88%)</title><rect x="872.4" y="1237" width="22.1" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="875.38" y="1247.5" >G..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ProgramDriver$ProgramDescription.invoke (327 samples, 51.17%)</title><rect x="174.4" y="1365" width="603.8" height="15.0" fill="rgb(236,145,34)" rx="2" ry="2" />
+<text  x="177.35" y="1375.5" >org/apache/hadoop/util/ProgramDriver$ProgramDescription.invoke</text>
+</g>
+<g >
+<title>Compilation::Compilation (96 samples, 15.02%)</title><rect x="846.5" y="1413" width="177.3" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="849.53" y="1423.5" >Compilation::Compilation</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$1.run (30 samples, 4.69%)</title><rect x="235.3" y="901" width="55.4" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="238.29" y="911.5" >org/a..</text>
+</g>
+<g >
+<title>jdk/internal/loader/AbstractClassLoaderValue.computeIfAbsent (23 samples, 3.60%)</title><rect x="475.4" y="437" width="42.4" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="478.35" y="447.5" >jdk..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.getCurrentUser (9 samples, 1.41%)</title><rect x="540.0" y="1109" width="16.6" height="15.0" fill="rgb(229,112,26)" rx="2" ry="2" />
+<text  x="542.98" y="1119.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$JarLoader.ensureOpen (7 samples, 1.10%)</title><rect x="137.4" y="1221" width="12.9" height="15.0" fill="rgb(227,104,24)" rx="2" ry="2" />
+<text  x="140.42" y="1231.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (10 samples, 1.56%)</title><rect x="560.3" y="741" width="18.5" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="563.30" y="751.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (16 samples, 2.50%)</title><rect x="327.6" y="773" width="29.6" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="330.62" y="783.5" >ja..</text>
+</g>
+<g >
+<title>LIR_Assembler::emit_lir_list (10 samples, 1.56%)</title><rect x="929.6" y="1333" width="18.5" height="15.0" fill="rgb(234,134,32)" rx="2" ry="2" />
+<text  x="932.62" y="1343.5" ></text>
+</g>
+<g >
+<title>java/lang/Class.getDeclaredMethods0 (22 samples, 3.44%)</title><rect x="475.4" y="261" width="40.6" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="478.35" y="271.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2$Invoker.invoke (12 samples, 1.88%)</title><rect x="246.4" y="677" width="22.1" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="249.37" y="687.5" >o..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.lambda$getProxyConstructor$0 (9 samples, 1.41%)</title><rect x="412.6" y="325" width="16.6" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="415.57" y="335.5" ></text>
+</g>
+<g >
+<title>java/lang/Class.privateGetPublicMethods (8 samples, 1.25%)</title><rect x="412.6" y="229" width="14.7" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="415.57" y="239.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.newProxyInstance (23 samples, 3.60%)</title><rect x="475.4" y="469" width="42.4" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="478.35" y="479.5" >jav..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader$1.hasNext (8 samples, 1.25%)</title><rect x="135.6" y="1381" width="14.7" height="15.0" fill="rgb(215,48,11)" rx="2" ry="2" />
+<text  x="138.57" y="1391.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$11.run (76 samples, 11.89%)</title><rect x="636.0" y="677" width="140.4" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="639.01" y="687.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$1.run (80 samples, 12.52%)</title><rect x="628.6" y="933" width="147.8" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="631.62" y="943.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/AbstractFileSystem.get (45 samples, 7.04%)</title><rect x="440.3" y="757" width="83.1" height="15.0" fill="rgb(227,102,24)" rx="2" ry="2" />
+<text  x="443.27" y="767.5" >org/apach..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (80 samples, 12.52%)</title><rect x="628.6" y="981" width="147.8" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="631.62" y="991.5" >javax/security/aut..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (38 samples, 5.95%)</title><rect x="235.3" y="1077" width="70.2" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="238.29" y="1087.5" >org/apa..</text>
+</g>
+<g >
+<title>sun/launcher/LauncherHelper.loadMainClass (7 samples, 1.10%)</title><rect x="829.9" y="1525" width="12.9" height="15.0" fill="rgb(254,225,54)" rx="2" ry="2" />
+<text  x="832.91" y="1535.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.getJobStatus (30 samples, 4.69%)</title><rect x="235.3" y="853" width="55.4" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="238.29" y="863.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.invoke (11 samples, 1.72%)</title><rect x="202.1" y="853" width="20.3" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="205.05" y="863.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$3.run (7 samples, 1.10%)</title><rect x="137.4" y="1253" width="12.9" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="140.42" y="1263.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (7 samples, 1.10%)</title><rect x="586.2" y="1045" width="12.9" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="589.15" y="1055.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (12 samples, 1.88%)</title><rect x="556.6" y="1109" width="22.2" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="559.60" y="1119.5" >j..</text>
+</g>
+<g >
+<title>jdk/internal/loader/AbstractClassLoaderValue$Memoizer.get (9 samples, 1.41%)</title><rect x="412.6" y="357" width="16.6" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="415.57" y="367.5" ></text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.bind (19 samples, 2.97%)</title><rect x="135.6" y="1461" width="35.1" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="138.57" y="1471.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$NetworkedJob.monitorAndPrintJob (66 samples, 10.33%)</title><rect x="196.5" y="1157" width="121.9" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="199.51" y="1167.5" >org/apache/hado..</text>
+</g>
+<g >
+<title>java/lang/ClassLoader.loadClass (8 samples, 1.25%)</title><rect x="412.6" y="181" width="14.7" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="415.57" y="191.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (16 samples, 2.50%)</title><rect x="327.6" y="725" width="29.6" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="330.62" y="735.5" >or..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$$Lambda.0x000000200104bde0.apply (9 samples, 1.41%)</title><rect x="412.6" y="341" width="16.6" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="415.57" y="351.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (80 samples, 12.52%)</title><rect x="628.6" y="1093" width="147.8" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="631.62" y="1103.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>jdk/proxy2/$Proxy11.getClusterMetrics (11 samples, 1.72%)</title><rect x="558.5" y="869" width="20.3" height="15.0" fill="rgb(206,8,1)" rx="2" ry="2" />
+<text  x="561.45" y="879.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (15 samples, 2.35%)</title><rect x="410.7" y="805" width="27.7" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="413.72" y="815.5" >j..</text>
+</g>
+<g >
+<title>GraphBuilder::try_inline_full (8 samples, 1.25%)</title><rect x="874.2" y="1157" width="14.8" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="877.23" y="1167.5" ></text>
+</g>
+<g >
+<title>___pthread_cond_timedwait64 (10 samples, 1.56%)</title><rect x="1070.0" y="1413" width="18.4" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="1072.97" y="1423.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (7 samples, 1.10%)</title><rect x="137.4" y="1285" width="12.9" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="140.42" y="1295.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2$Invoker.invoke (12 samples, 1.88%)</title><rect x="246.4" y="693" width="22.1" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="249.37" y="703.5" >o..</text>
+</g>
+<g >
+<title>java/lang/CompoundEnumeration.hasMoreElements (8 samples, 1.25%)</title><rect x="135.6" y="1429" width="14.7" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="138.57" y="1439.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (76 samples, 11.89%)</title><rect x="636.0" y="885" width="140.4" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="639.01" y="895.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.getNewJobID (9 samples, 1.41%)</title><rect x="645.2" y="645" width="16.7" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="648.24" y="655.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Constructor.newInstance (44 samples, 6.89%)</title><rect x="442.1" y="709" width="81.3" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="445.11" y="719.5" >java/lang..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (23 samples, 3.60%)</title><rect x="475.4" y="501" width="42.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="478.35" y="511.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.getClusterStatus (12 samples, 1.88%)</title><rect x="556.6" y="1173" width="22.2" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="559.60" y="1183.5" >o..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy.getProxyConstructor (23 samples, 3.60%)</title><rect x="475.4" y="453" width="42.4" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="478.35" y="463.5" >jav..</text>
+</g>
+<g >
+<title>__futex_abstimed_wait_cancelable64 (9 samples, 1.41%)</title><rect x="1070.0" y="1397" width="16.6" height="15.0" fill="rgb(236,146,34)" rx="2" ry="2" />
+<text  x="1072.97" y="1407.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ShutdownHookManager$HookEntry.&lt;init&gt; (10 samples, 1.56%)</title><rect x="807.7" y="1493" width="18.5" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="810.75" y="1503.5" ></text>
+</g>
+<g >
+<title>Compilation::emit_code_body (14 samples, 2.19%)</title><rect x="927.8" y="1365" width="25.8" height="15.0" fill="rgb(234,135,32)" rx="2" ry="2" />
+<text  x="930.78" y="1375.5" >C..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (15 samples, 2.35%)</title><rect x="410.7" y="885" width="27.7" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="413.72" y="895.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2$Invoker.invoke (9 samples, 1.41%)</title><rect x="203.9" y="709" width="16.6" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="206.90" y="719.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$NetworkedJob.monitorAndPrintJob (24 samples, 3.76%)</title><rect x="584.3" y="1141" width="44.3" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="587.30" y="1151.5" >org/..</text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.newInvokeSpecial (44 samples, 6.89%)</title><rect x="442.1" y="613" width="81.3" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="445.11" y="623.5" >java/lang..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSOutputStream.newStreamForCreate (8 samples, 1.25%)</title><rect x="732.0" y="293" width="14.8" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="735.03" y="303.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobResourceUploader.copyJar (17 samples, 2.66%)</title><rect x="722.8" y="581" width="31.4" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="725.80" y="591.5" >or..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetPublicMethods (8 samples, 1.25%)</title><rect x="412.6" y="245" width="14.7" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="415.57" y="255.5" ></text>
+</g>
+<g >
+<title>__ip_queue_xmit (10 samples, 1.56%)</title><rect x="43.2" y="901" width="18.5" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="46.24" y="911.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/RMProxy.createNonHaRMFailoverProxyProvider (16 samples, 2.50%)</title><rect x="408.9" y="933" width="29.5" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="411.87" y="943.5" >or..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x00000020013a0400.invokeStatic (16 samples, 2.50%)</title><rect x="327.6" y="837" width="29.6" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="330.62" y="847.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$6.run (14 samples, 2.19%)</title><rect x="202.1" y="901" width="25.8" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="205.05" y="911.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$Connection.run (26 samples, 4.07%)</title><rect x="85.7" y="1541" width="48.0" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="88.71" y="1551.5" >org/..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (7 samples, 1.10%)</title><rect x="608.3" y="997" width="12.9" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="611.31" y="1007.5" ></text>
+</g>
+<g >
+<title>com/sun/org/apache/xalan/internal/xsltc/trax/TransformerImpl.transform (7 samples, 1.10%)</title><rect x="754.2" y="565" width="12.9" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="757.19" y="575.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x0000002001204000.invokeInterface (15 samples, 2.35%)</title><rect x="240.8" y="741" width="27.7" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="243.83" y="751.5" >j..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (45 samples, 7.04%)</title><rect x="440.3" y="933" width="83.1" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="443.27" y="943.5" >java/lang..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invokeExact_MT (16 samples, 2.50%)</title><rect x="239.0" y="773" width="29.5" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="241.98" y="783.5" >ja..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (45 samples, 7.04%)</title><rect x="440.3" y="901" width="83.1" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="443.27" y="911.5" >javax/sec..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.initialize (7 samples, 1.10%)</title><rect x="540.0" y="1077" width="12.9" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="542.98" y="1087.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (16 samples, 2.50%)</title><rect x="327.6" y="885" width="29.6" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="330.62" y="895.5" >or..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.create (9 samples, 1.41%)</title><rect x="732.0" y="485" width="16.7" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="735.03" y="495.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::iterate_all_blocks (28 samples, 4.38%)</title><rect x="863.1" y="1301" width="51.8" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="866.15" y="1311.5" >Graph..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (7 samples, 1.10%)</title><rect x="608.3" y="981" width="12.9" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="611.31" y="991.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (38 samples, 5.95%)</title><rect x="235.3" y="1061" width="70.2" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="238.29" y="1071.5" >org/apa..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (16 samples, 2.50%)</title><rect x="327.6" y="757" width="29.6" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="330.62" y="767.5" >ja..</text>
+</g>
+<g >
+<title>new_sync_write (12 samples, 1.88%)</title><rect x="43.2" y="1077" width="22.2" height="15.0" fill="rgb(251,211,50)" rx="2" ry="2" />
+<text  x="46.24" y="1087.5" >n..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (38 samples, 5.95%)</title><rect x="235.3" y="997" width="70.2" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="238.29" y="1007.5" >javax/s..</text>
+</g>
+<g >
+<title>sun/nio/ch/IOUtil.write (14 samples, 2.19%)</title><rect x="39.5" y="1317" width="25.9" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="42.55" y="1327.5" >s..</text>
+</g>
+<g >
+<title>G1ScanHRForRegionClosure::scan_heap_roots (8 samples, 1.25%)</title><rect x="1132.8" y="1413" width="14.7" height="15.0" fill="rgb(252,220,52)" rx="2" ry="2" />
+<text  x="1135.75" y="1423.5" ></text>
+</g>
+<g >
+<title>tcp_push (12 samples, 1.88%)</title><rect x="43.2" y="981" width="22.2" height="15.0" fill="rgb(249,206,49)" rx="2" ry="2" />
+<text  x="46.24" y="991.5" >t..</text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ShutdownHookManager.getShutdownTimeout (8 samples, 1.25%)</title><rect x="811.4" y="1477" width="14.8" height="15.0" fill="rgb(225,95,22)" rx="2" ry="2" />
+<text  x="814.44" y="1487.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DistributedFileSystem.create (9 samples, 1.41%)</title><rect x="732.0" y="437" width="16.7" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="735.03" y="447.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.getTaskCompletionEvents (18 samples, 2.82%)</title><rect x="202.1" y="1125" width="33.2" height="15.0" fill="rgb(208,17,4)" rx="2" ry="2" />
+<text  x="205.05" y="1135.5" >or..</text>
+</g>
+<g >
+<title>Thread::call_run (187 samples, 29.26%)</title><rect x="842.8" y="1493" width="345.4" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="845.83" y="1503.5" >Thread::call_run</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (7 samples, 1.10%)</title><rect x="586.2" y="949" width="12.9" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="589.15" y="959.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x000000200100ac00.invokeExact_MT (11 samples, 1.72%)</title><rect x="410.7" y="581" width="20.3" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="413.72" y="591.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobConf.getWorkingDirectory (7 samples, 1.10%)</title><rect x="371.9" y="1157" width="13.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="374.94" y="1167.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::iterate_all_blocks (12 samples, 1.88%)</title><rect x="872.4" y="1221" width="22.1" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="875.38" y="1231.5" >G..</text>
+</g>
+<g >
+<title>org/apache/log4j/PropertyConfigurator.doConfigure (7 samples, 1.10%)</title><rect x="157.7" y="1349" width="13.0" height="15.0" fill="rgb(226,98,23)" rx="2" ry="2" />
+<text  x="160.73" y="1359.5" ></text>
+</g>
+<g >
+<title>thread_start (188 samples, 29.42%)</title><rect x="842.8" y="1541" width="347.2" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="845.83" y="1551.5" >thread_start</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.&lt;init&gt; (22 samples, 3.44%)</title><rect x="475.4" y="373" width="40.6" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="478.35" y="383.5" >jav..</text>
+</g>
+<g >
+<title>__GI___libc_write (12 samples, 1.88%)</title><rect x="43.2" y="1237" width="22.2" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="46.24" y="1247.5" >_..</text>
+</g>
+<g >
+<title>sun/nio/ch/EPollSelectorImpl.doSelect (7 samples, 1.10%)</title><rect x="102.3" y="1237" width="13.0" height="15.0" fill="rgb(235,140,33)" rx="2" ry="2" />
+<text  x="105.33" y="1247.5" ></text>
+</g>
+<g >
+<title>WatcherThread::sleep (15 samples, 2.35%)</title><rect x="1064.4" y="1461" width="27.7" height="15.0" fill="rgb(231,120,28)" rx="2" ry="2" />
+<text  x="1067.43" y="1471.5" >W..</text>
+</g>
+<g >
+<title>GraphBuilder::invoke (11 samples, 1.72%)</title><rect x="874.2" y="1189" width="20.3" height="15.0" fill="rgb(242,171,41)" rx="2" ry="2" />
+<text  x="877.23" y="1199.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClassOrNull (7 samples, 1.10%)</title><rect x="829.9" y="1413" width="12.9" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="832.91" y="1423.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DataStreamer.setupPipelineForCreate (8 samples, 1.25%)</title><rect x="70.9" y="1525" width="14.8" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="73.94" y="1535.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/JobSubmitter.copyAndConfigureFiles (19 samples, 2.97%)</title><rect x="719.1" y="645" width="35.1" height="15.0" fill="rgb(211,28,6)" rx="2" ry="2" />
+<text  x="722.11" y="655.5" >or..</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.loadClass (8 samples, 1.25%)</title><rect x="412.6" y="149" width="14.7" height="15.0" fill="rgb(206,7,1)" rx="2" ry="2" />
+<text  x="415.57" y="159.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$1.hasMoreElements (8 samples, 1.25%)</title><rect x="135.6" y="1365" width="14.7" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="138.57" y="1375.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (30 samples, 4.69%)</title><rect x="235.3" y="949" width="55.4" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="238.29" y="959.5" >javax..</text>
+</g>
+<g >
+<title>Compilation::compile_method (96 samples, 15.02%)</title><rect x="846.5" y="1397" width="177.3" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="849.53" y="1407.5" >Compilation::compile_me..</text>
+</g>
+<g >
+<title>java/io/BufferedOutputStream.flush (15 samples, 2.35%)</title><rect x="37.7" y="1461" width="27.7" height="15.0" fill="rgb(249,206,49)" rx="2" ry="2" />
+<text  x="40.70" y="1471.5" >j..</text>
+</g>
+<g >
+<title>jdk/proxy2/$Proxy18.getTaskAttemptCompletionEvents (9 samples, 1.41%)</title><rect x="203.9" y="725" width="16.6" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="206.90" y="735.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invoke (329 samples, 51.49%)</title><rect x="170.7" y="1493" width="607.5" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="173.66" y="1503.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invoke</text>
+</g>
+<g >
+<title>GraphBuilder::GraphBuilder (35 samples, 5.48%)</title><rect x="852.1" y="1317" width="64.6" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="855.07" y="1327.5" >GraphBu..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x00000020010c0800.invoke (326 samples, 51.02%)</title><rect x="176.2" y="1285" width="602.0" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="179.20" y="1295.5" >java/lang/invoke/LambdaForm$MH.0x00000020010c0800.invoke</text>
+</g>
+<g >
+<title>[stale_jmethodID] (15 samples, 2.35%)</title><rect x="410.7" y="821" width="27.7" height="15.0" fill="rgb(205,4,0)" rx="2" ry="2" />
+<text  x="413.72" y="831.5" >[..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectConstructorHandleAccessor.invokeImpl (11 samples, 1.72%)</title><rect x="410.7" y="597" width="20.3" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="413.72" y="607.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (16 samples, 2.50%)</title><rect x="327.6" y="869" width="29.6" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="330.62" y="879.5" >or..</text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (329 samples, 51.49%)</title><rect x="170.7" y="1509" width="607.5" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="173.66" y="1519.5" >java/lang/reflect/Method.invoke</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ResourceMgrDelegate.serviceStart (20 samples, 3.13%)</title><rect x="401.5" y="1029" width="36.9" height="15.0" fill="rgb(228,106,25)" rx="2" ry="2" />
+<text  x="404.49" y="1039.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/conf/Configuration.getTimeDuration (8 samples, 1.25%)</title><rect x="811.4" y="1461" width="14.8" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="814.44" y="1471.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (10 samples, 1.56%)</title><rect x="412.6" y="501" width="18.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="415.57" y="511.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (15 samples, 2.35%)</title><rect x="410.7" y="853" width="27.7" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="413.72" y="863.5" >o..</text>
+</g>
+<g >
+<title>el0_svc (8 samples, 1.25%)</title><rect x="1071.8" y="1349" width="14.8" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="1074.82" y="1359.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/conf/Configuration.writeXml (11 samples, 1.72%)</title><rect x="754.2" y="629" width="20.3" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="757.19" y="639.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.setupLocalResources (9 samples, 1.41%)</title><rect x="695.1" y="613" width="16.6" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="698.10" y="623.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectConstructorHandleAccessor.newInstance (11 samples, 1.72%)</title><rect x="410.7" y="613" width="20.3" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="413.72" y="623.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.invokeStatic (12 samples, 1.88%)</title><rect x="556.6" y="1093" width="22.2" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="559.60" y="1103.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$8.run (7 samples, 1.10%)</title><rect x="586.2" y="885" width="12.9" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="589.15" y="895.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectConstructorHandleAccessor.invokeImpl (44 samples, 6.89%)</title><rect x="442.1" y="661" width="81.3" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="445.11" y="671.5" >jdk/inter..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (30 samples, 4.69%)</title><rect x="235.3" y="933" width="55.4" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="238.29" y="943.5" >javax..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/NameNodeProxiesClient.createProxyWithAlignmentContext (29 samples, 4.54%)</title><rect x="464.3" y="517" width="53.5" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="467.27" y="527.5" >org/a..</text>
+</g>
+<g >
+<title>java/io/BufferedInputStream.read1 (14 samples, 2.19%)</title><rect x="94.9" y="1381" width="25.9" height="15.0" fill="rgb(232,125,30)" rx="2" ry="2" />
+<text  x="97.95" y="1391.5" >j..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x000000200111c000.newInvokeSpecial (11 samples, 1.72%)</title><rect x="410.7" y="549" width="20.3" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="413.72" y="559.5" ></text>
+</g>
+<g >
+<title>Compilation::emit_lir (26 samples, 4.07%)</title><rect x="953.6" y="1365" width="48.0" height="15.0" fill="rgb(218,62,14)" rx="2" ry="2" />
+<text  x="956.63" y="1375.5" >Comp..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$Connection.sendRpcRequest (7 samples, 1.10%)</title><rect x="203.9" y="645" width="12.9" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="206.90" y="655.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (21 samples, 3.29%)</title><rect x="318.4" y="965" width="38.8" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="321.39" y="975.5" >org..</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.performInitialization (19 samples, 2.97%)</title><rect x="135.6" y="1477" width="35.1" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="138.57" y="1487.5" >or..</text>
+</g>
+<g >
+<title>java/util/zip/ZipFile.&lt;init&gt; (7 samples, 1.10%)</title><rect x="137.4" y="1093" width="12.9" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="140.42" y="1103.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (12 samples, 1.88%)</title><rect x="556.6" y="1061" width="22.2" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="559.60" y="1071.5" >j..</text>
+</g>
+<g >
+<title>java/lang/String.valueOf (7 samples, 1.10%)</title><rect x="695.1" y="597" width="12.9" height="15.0" fill="rgb(218,61,14)" rx="2" ry="2" />
+<text  x="698.10" y="607.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/api/records/impl/pb/URLPBImpl.toString (7 samples, 1.10%)</title><rect x="695.1" y="581" width="12.9" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="698.10" y="591.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath.getResource (7 samples, 1.10%)</title><rect x="829.9" y="1381" width="12.9" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="832.91" y="1391.5" ></text>
+</g>
+<g >
+<title>CompileBroker::invoke_compiler_on_method (100 samples, 15.65%)</title><rect x="846.5" y="1445" width="184.7" height="15.0" fill="rgb(228,105,25)" rx="2" ry="2" />
+<text  x="849.53" y="1455.5" >CompileBroker::invoke_co..</text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl (329 samples, 51.49%)</title><rect x="170.7" y="1477" width="607.5" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="173.66" y="1487.5" >jdk/internal/reflect/DirectMethodHandleAccessor.invokeImpl</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/v2/api/impl/pb/client/MRClientProtocolPBClientImpl.getTaskAttemptCompletionEvents (9 samples, 1.41%)</title><rect x="203.9" y="741" width="16.6" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="206.90" y="751.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.&lt;init&gt; (93 samples, 14.55%)</title><rect x="384.9" y="1173" width="171.7" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="387.87" y="1183.5" >org/apache/hadoop/mapr..</text>
+</g>
+<g >
+<title>JavaThread::thread_main_inner (112 samples, 17.53%)</title><rect x="846.5" y="1477" width="206.8" height="15.0" fill="rgb(226,100,23)" rx="2" ry="2" />
+<text  x="849.53" y="1487.5" >JavaThread::thread_main_inner</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/api/impl/pb/client/ApplicationClientProtocolPBClientImpl.&lt;init&gt; (11 samples, 1.72%)</title><rect x="410.7" y="533" width="20.3" height="15.0" fill="rgb(212,33,7)" rx="2" ry="2" />
+<text  x="413.72" y="543.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (18 samples, 2.82%)</title><rect x="202.1" y="1029" width="33.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="205.05" y="1039.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.call (9 samples, 1.41%)</title><rect x="560.3" y="613" width="16.6" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="563.30" y="623.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (7 samples, 1.10%)</title><rect x="586.2" y="917" width="12.9" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="589.15" y="927.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (7 samples, 1.10%)</title><rect x="586.2" y="981" width="12.9" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="589.15" y="991.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ResourceMgrDelegate.getNewJobID (9 samples, 1.41%)</title><rect x="645.2" y="629" width="16.7" height="15.0" fill="rgb(209,18,4)" rx="2" ry="2" />
+<text  x="648.24" y="639.5" ></text>
+</g>
+<g >
+<title>java/lang/Class.privateGetPublicMethods (22 samples, 3.44%)</title><rect x="475.4" y="309" width="40.6" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="478.35" y="319.5" >jav..</text>
+</g>
+<g >
+<title>org/slf4j/LoggerFactory.findPossibleStaticLoggerBinderPathSet (8 samples, 1.25%)</title><rect x="135.6" y="1445" width="14.7" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="138.57" y="1455.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.create (9 samples, 1.41%)</title><rect x="732.0" y="309" width="16.7" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="735.03" y="319.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$1.run (7 samples, 1.10%)</title><rect x="608.3" y="885" width="12.9" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="611.31" y="895.5" ></text>
+</g>
+<g >
+<title>jdk/internal/reflect/DirectConstructorHandleAccessor.newInstance (44 samples, 6.89%)</title><rect x="442.1" y="677" width="81.3" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="445.11" y="687.5" >jdk/inter..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.getCounters (7 samples, 1.10%)</title><rect x="586.2" y="1109" width="12.9" height="15.0" fill="rgb(210,27,6)" rx="2" ry="2" />
+<text  x="589.15" y="1119.5" ></text>
+</g>
+<g >
+<title>KlassFactory::create_from_stream (8 samples, 1.25%)</title><rect x="475.4" y="37" width="14.7" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="478.35" y="47.5" ></text>
+</g>
+<g >
+<title>IRScope::IRScope (36 samples, 5.63%)</title><rect x="852.1" y="1333" width="66.4" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="855.07" y="1343.5" >IRScope..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.&lt;init&gt; (8 samples, 1.25%)</title><rect x="412.6" y="309" width="14.7" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="415.57" y="319.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/service/AbstractService.start (20 samples, 3.13%)</title><rect x="401.5" y="1013" width="36.9" height="15.0" fill="rgb(216,54,13)" rx="2" ry="2" />
+<text  x="404.49" y="1023.5" >org..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (21 samples, 3.29%)</title><rect x="318.4" y="1013" width="38.8" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="321.39" y="1023.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (30 samples, 4.69%)</title><rect x="235.3" y="917" width="55.4" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="238.29" y="927.5" >org/a..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.copyFromLocalFile (16 samples, 2.50%)</title><rect x="722.8" y="565" width="29.5" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="725.80" y="575.5" >or..</text>
+</g>
+<g >
+<title>java/lang/invoke/Invokers$Holder.invoke_MT (80 samples, 12.52%)</title><rect x="628.6" y="1077" width="147.8" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="631.62" y="1087.5" >java/lang/invoke/I..</text>
+</g>
+<g >
+<title>java/lang/Class.forName0 (7 samples, 1.10%)</title><rect x="829.9" y="1477" width="12.9" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="832.91" y="1487.5" ></text>
+</g>
+<g >
+<title>invoke_syscall (12 samples, 1.88%)</title><rect x="43.2" y="1141" width="22.2" height="15.0" fill="rgb(215,48,11)" rx="2" ry="2" />
+<text  x="46.24" y="1151.5" >i..</text>
+</g>
+<g >
+<title>jdk/internal/loader/AbstractClassLoaderValue$Memoizer.get (23 samples, 3.60%)</title><rect x="475.4" y="421" width="42.4" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="478.35" y="431.5" >jdk..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.copyFromLocalFile (16 samples, 2.50%)</title><rect x="722.8" y="533" width="29.5" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="725.80" y="543.5" >or..</text>
+</g>
+<g >
+<title>java/lang/reflect/Constructor.newInstanceWithCaller (11 samples, 1.72%)</title><rect x="410.7" y="629" width="20.3" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="413.72" y="639.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (18 samples, 2.82%)</title><rect x="202.1" y="1093" width="33.2" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="205.05" y="1103.5" >or..</text>
+</g>
+<g >
+<title>java/lang/Class.privateGetDeclaredMethods (8 samples, 1.25%)</title><rect x="412.6" y="213" width="14.7" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="415.57" y="223.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x00000020013c8000.invoke (15 samples, 2.35%)</title><rect x="240.8" y="757" width="27.7" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="243.83" y="767.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/conf/Configuration.writeXml (11 samples, 1.72%)</title><rect x="754.2" y="581" width="20.3" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="757.19" y="591.5" ></text>
+</g>
+<g >
+<title>el0_svc (12 samples, 1.88%)</title><rect x="43.2" y="1189" width="22.2" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="46.24" y="1199.5" >e..</text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/ProtobufRpcEngine2$Invoker.invoke (10 samples, 1.56%)</title><rect x="560.3" y="645" width="18.5" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="563.30" y="655.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.doAs (21 samples, 3.29%)</title><rect x="318.4" y="1045" width="38.8" height="15.0" fill="rgb(213,37,9)" rx="2" ry="2" />
+<text  x="321.39" y="1055.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.invoke (7 samples, 1.10%)</title><rect x="608.3" y="821" width="12.9" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="611.31" y="831.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.callAs (76 samples, 11.89%)</title><rect x="636.0" y="853" width="140.4" height="15.0" fill="rgb(250,208,49)" rx="2" ry="2" />
+<text  x="639.01" y="863.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/ipc/HadoopYarnProtoRPC.getProxy (15 samples, 2.35%)</title><rect x="410.7" y="677" width="27.7" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="413.72" y="687.5" >o..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$$Lambda.0x000000200104bde0.apply (23 samples, 3.60%)</title><rect x="475.4" y="405" width="42.4" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="478.35" y="415.5" >jav..</text>
+</g>
+<g >
+<title>GraphBuilder::iterate_bytecodes_for_block (7 samples, 1.10%)</title><rect x="874.2" y="1125" width="13.0" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="877.23" y="1135.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (18 samples, 2.82%)</title><rect x="237.1" y="821" width="33.3" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="240.14" y="831.5" >ja..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (7 samples, 1.10%)</title><rect x="608.3" y="901" width="12.9" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="611.31" y="911.5" ></text>
+</g>
+<g >
+<title>java/lang/reflect/Constructor.newInstanceWithCaller (44 samples, 6.89%)</title><rect x="442.1" y="693" width="81.3" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="445.11" y="703.5" >java/lang..</text>
+</g>
+<g >
+<title>__arm64_sys_write (12 samples, 1.88%)</title><rect x="43.2" y="1125" width="22.2" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="46.24" y="1135.5" >_..</text>
+</g>
+<g >
+<title>JVM_DefineClassWithSource (8 samples, 1.25%)</title><rect x="475.4" y="85" width="14.7" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="478.35" y="95.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.getClusterMetrics (11 samples, 1.72%)</title><rect x="558.5" y="917" width="20.3" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="561.45" y="927.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/conf/Configuration.writeXml (11 samples, 1.72%)</title><rect x="754.2" y="597" width="20.3" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="757.19" y="607.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/RMProxy.createRMProxy (20 samples, 3.13%)</title><rect x="401.5" y="965" width="36.9" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="404.49" y="975.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$3.run (12 samples, 1.88%)</title><rect x="556.6" y="949" width="22.2" height="15.0" fill="rgb(237,148,35)" rx="2" ry="2" />
+<text  x="559.60" y="959.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.submit (21 samples, 3.29%)</title><rect x="318.4" y="917" width="38.8" height="15.0" fill="rgb(211,32,7)" rx="2" ry="2" />
+<text  x="321.39" y="927.5" >org..</text>
+</g>
+<g >
+<title>java/security/AccessController.getContext (7 samples, 1.10%)</title><rect x="292.5" y="981" width="13.0" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="295.54" y="991.5" ></text>
+</g>
+<g >
+<title>G1ParScanThreadState::steal_and_trim_queue (8 samples, 1.25%)</title><rect x="1105.1" y="1413" width="14.7" height="15.0" fill="rgb(248,200,47)" rx="2" ry="2" />
+<text  x="1108.05" y="1423.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ThreadedMapBenchmark.run (324 samples, 50.70%)</title><rect x="178.0" y="1205" width="598.4" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="181.04" y="1215.5" >org/apache/hadoop/mapred/ThreadedMapBenchmark.run</text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath$JarLoader$1.run (7 samples, 1.10%)</title><rect x="137.4" y="1173" width="12.9" height="15.0" fill="rgb(223,83,20)" rx="2" ry="2" />
+<text  x="140.42" y="1183.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/ClassLoaders$AppClassLoader.loadClass (8 samples, 1.25%)</title><rect x="412.6" y="165" width="14.7" height="15.0" fill="rgb(248,199,47)" rx="2" ry="2" />
+<text  x="415.57" y="175.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (80 samples, 12.52%)</title><rect x="628.6" y="1109" width="147.8" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="631.62" y="1119.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>java/io/DataInputStream.readFully (15 samples, 2.35%)</title><rect x="93.1" y="1477" width="27.7" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="96.10" y="1487.5" >j..</text>
+</g>
+<g >
+<title>non-virtual thunk to LIRGenerator::block_do (12 samples, 1.88%)</title><rect x="953.6" y="1333" width="22.2" height="15.0" fill="rgb(226,96,23)" rx="2" ry="2" />
+<text  x="956.63" y="1343.5" >n..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Cluster.&lt;init&gt; (92 samples, 14.40%)</title><rect x="386.7" y="1141" width="169.9" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="389.71" y="1151.5" >org/apache/hadoop/map..</text>
+</g>
+<g >
+<title>org/slf4j/impl/Reload4jLoggerFactory.&lt;init&gt; (11 samples, 1.72%)</title><rect x="150.3" y="1413" width="20.4" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="153.34" y="1423.5" ></text>
+</g>
+<g >
+<title>__tcp_push_pending_frames (12 samples, 1.88%)</title><rect x="43.2" y="965" width="22.2" height="15.0" fill="rgb(236,147,35)" rx="2" ry="2" />
+<text  x="46.24" y="975.5" >_..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (7 samples, 1.10%)</title><rect x="608.3" y="949" width="12.9" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="611.31" y="959.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (12 samples, 1.88%)</title><rect x="556.6" y="1045" width="22.2" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="559.60" y="1055.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$1.run (21 samples, 3.29%)</title><rect x="318.4" y="933" width="38.8" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="321.39" y="943.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (76 samples, 11.89%)</title><rect x="636.0" y="709" width="140.4" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="639.01" y="719.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>G1RemSet::scan_heap_roots (8 samples, 1.25%)</title><rect x="1132.8" y="1429" width="14.7" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="1135.75" y="1439.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DistributedFileSystem.create (9 samples, 1.41%)</title><rect x="732.0" y="421" width="16.7" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="735.03" y="431.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil$$Lambda.0x000000200114ebc0.call (14 samples, 2.19%)</title><rect x="202.1" y="933" width="25.8" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="205.05" y="943.5" >o..</text>
+</g>
+<g >
+<title>org/apache/hadoop/conf/Configuration.getTimeDuration (8 samples, 1.25%)</title><rect x="811.4" y="1445" width="14.8" height="15.0" fill="rgb(219,65,15)" rx="2" ry="2" />
+<text  x="814.44" y="1455.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.create (9 samples, 1.41%)</title><rect x="732.0" y="357" width="16.7" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="735.03" y="367.5" ></text>
+</g>
+<g >
+<title>java/io/DataInputStream.readInt (15 samples, 2.35%)</title><rect x="93.1" y="1493" width="27.7" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="96.10" y="1503.5" >j..</text>
+</g>
+<g >
+<title>java/security/SecureClassLoader.defineClass (14 samples, 2.19%)</title><rect x="475.4" y="149" width="25.8" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="478.35" y="159.5" >j..</text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x00000020013c8800.invoke (10 samples, 1.56%)</title><rect x="202.1" y="773" width="18.4" height="15.0" fill="rgb(233,133,31)" rx="2" ry="2" />
+<text  x="205.05" y="783.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x0000002001010400.invokeStatic (326 samples, 51.02%)</title><rect x="176.2" y="1269" width="602.0" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="179.20" y="1279.5" >java/lang/invoke/LambdaForm$DMH.0x0000002001010400.invokeStatic</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/AbstractFileSystem.newInstance (44 samples, 6.89%)</title><rect x="442.1" y="725" width="81.3" height="15.0" fill="rgb(209,18,4)" rx="2" ry="2" />
+<text  x="445.11" y="735.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$11.run (76 samples, 11.89%)</title><rect x="636.0" y="693" width="140.4" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="639.01" y="703.5" >org/apache/hadoop..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/AbstractFileSystem.createFileSystem (45 samples, 7.04%)</title><rect x="440.3" y="741" width="83.1" height="15.0" fill="rgb(240,162,38)" rx="2" ry="2" />
+<text  x="443.27" y="751.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Cluster.getClusterStatus (11 samples, 1.72%)</title><rect x="558.5" y="933" width="20.3" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="561.45" y="943.5" ></text>
+</g>
+<g >
+<title>java/util/zip/ZipFile.&lt;init&gt; (7 samples, 1.10%)</title><rect x="137.4" y="1109" width="12.9" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="140.42" y="1119.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$MH.0x0000002001154400.invoke (44 samples, 6.89%)</title><rect x="442.1" y="629" width="81.3" height="15.0" fill="rgb(245,187,44)" rx="2" ry="2" />
+<text  x="445.11" y="639.5" >java/lang..</text>
+</g>
+<g >
+<title>jdk/internal/loader/ClassLoaders$AppClassLoader.loadClass (22 samples, 3.44%)</title><rect x="475.4" y="229" width="40.6" height="15.0" fill="rgb(248,199,47)" rx="2" ry="2" />
+<text  x="478.35" y="239.5" >jdk..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (7 samples, 1.10%)</title><rect x="608.3" y="933" width="12.9" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="611.31" y="943.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (45 samples, 7.04%)</title><rect x="440.3" y="821" width="83.1" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="443.27" y="831.5" >javax/sec..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job.monitorAndPrintJob (24 samples, 3.76%)</title><rect x="584.3" y="1125" width="44.3" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="587.30" y="1135.5" >org/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/hdfs/DFSClient.&lt;init&gt; (42 samples, 6.57%)</title><rect x="445.8" y="581" width="77.6" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="448.81" y="591.5" >org/apac..</text>
+</g>
+<g >
+<title>sun/nio/ch/SocketDispatcher.write0 (13 samples, 2.03%)</title><rect x="41.4" y="1269" width="24.0" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
+<text  x="44.39" y="1279.5" >s..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.&lt;init&gt; (45 samples, 7.04%)</title><rect x="440.3" y="1061" width="83.1" height="15.0" fill="rgb(222,82,19)" rx="2" ry="2" />
+<text  x="443.27" y="1071.5" >org/apach..</text>
+</g>
+<g >
+<title>java/lang/Class.getMethods (22 samples, 3.44%)</title><rect x="475.4" y="325" width="40.6" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="478.35" y="335.5" >jav..</text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (15 samples, 2.35%)</title><rect x="410.7" y="869" width="27.7" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="413.72" y="879.5" >o..</text>
+</g>
+<g >
+<title>CodeCacheUnloadingTask::work (11 samples, 1.72%)</title><rect x="1160.5" y="1445" width="20.3" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="1163.45" y="1455.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient.submitJobInternal (21 samples, 3.29%)</title><rect x="318.4" y="1157" width="38.8" height="15.0" fill="rgb(205,0,0)" rx="2" ry="2" />
+<text  x="321.39" y="1167.5" >org..</text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (7 samples, 1.10%)</title><rect x="137.4" y="1301" width="12.9" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="140.42" y="1311.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$1.run (30 samples, 4.69%)</title><rect x="235.3" y="885" width="55.4" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="238.29" y="895.5" >org/a..</text>
+</g>
+<g >
+<title>java/util/concurrent/ConcurrentHashMap.computeIfAbsent (7 samples, 1.10%)</title><rect x="560.3" y="565" width="12.9" height="15.0" fill="rgb(250,211,50)" rx="2" ry="2" />
+<text  x="563.30" y="575.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (12 samples, 1.88%)</title><rect x="556.6" y="997" width="22.2" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="559.60" y="1007.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/retry/RetryInvocationHandler$Call.invokeMethod (10 samples, 1.56%)</title><rect x="560.3" y="805" width="18.5" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="563.30" y="815.5" ></text>
+</g>
+<g >
+<title>start_thread (188 samples, 29.42%)</title><rect x="842.8" y="1525" width="347.2" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="845.83" y="1535.5" >start_thread</text>
+</g>
+<g >
+<title>inet6_sendmsg (12 samples, 1.88%)</title><rect x="43.2" y="1029" width="22.2" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="46.24" y="1039.5" >i..</text>
+</g>
+<g >
+<title>org/apache/hadoop/io/retry/RetryInvocationHandler$Call.invoke (11 samples, 1.72%)</title><rect x="558.5" y="821" width="20.3" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="561.45" y="831.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (7 samples, 1.10%)</title><rect x="586.2" y="1077" width="12.9" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="589.15" y="1087.5" ></text>
+</g>
+<g >
+<title>org/slf4j/impl/StaticLoggerBinder.&lt;init&gt; (11 samples, 1.72%)</title><rect x="150.3" y="1429" width="20.4" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="153.34" y="1439.5" ></text>
+</g>
+<g >
+<title>java/lang/invoke/LambdaForm$DMH.0x00000020013a0400.invokeStatic (7 samples, 1.10%)</title><rect x="586.2" y="1029" width="12.9" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="589.15" y="1039.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client$IpcStreams.readResponse (15 samples, 2.35%)</title><rect x="93.1" y="1509" width="27.7" height="15.0" fill="rgb(229,114,27)" rx="2" ry="2" />
+<text  x="96.10" y="1519.5" >o..</text>
+</g>
+<g >
+<title>jdk/internal/loader/AbstractClassLoaderValue.computeIfAbsent (9 samples, 1.41%)</title><rect x="412.6" y="373" width="16.6" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="415.57" y="383.5" ></text>
+</g>
+<g >
+<title>GraphBuilder::iterate_bytecodes_for_block (12 samples, 1.88%)</title><rect x="872.4" y="1205" width="22.1" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="875.38" y="1215.5" >G..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/YARNRunner.&lt;init&gt; (45 samples, 7.04%)</title><rect x="440.3" y="1045" width="83.1" height="15.0" fill="rgb(222,82,19)" rx="2" ry="2" />
+<text  x="443.27" y="1055.5" >org/apach..</text>
+</g>
+<g >
+<title>java/io/BufferedOutputStream.implFlush (15 samples, 2.35%)</title><rect x="37.7" y="1445" width="27.7" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="40.70" y="1455.5" >j..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (15 samples, 2.35%)</title><rect x="410.7" y="725" width="27.7" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="413.72" y="735.5" >j..</text>
+</g>
+<g >
+<title>sun/nio/ch/SelectorImpl.select (7 samples, 1.10%)</title><rect x="102.3" y="1269" width="13.0" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="105.33" y="1279.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/net/SocketOutputStream.write (15 samples, 2.35%)</title><rect x="37.7" y="1397" width="27.7" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="40.70" y="1407.5" >o..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (38 samples, 5.95%)</title><rect x="235.3" y="1013" width="70.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="238.29" y="1023.5" >javax/s..</text>
+</g>
+<g >
+<title>org/apache/log4j/PropertyConfigurator.doConfigure (7 samples, 1.10%)</title><rect x="157.7" y="1365" width="13.0" height="15.0" fill="rgb(226,98,23)" rx="2" ry="2" />
+<text  x="160.73" y="1375.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/JobClient$1.run (80 samples, 12.52%)</title><rect x="628.6" y="917" width="147.8" height="15.0" fill="rgb(250,207,49)" rx="2" ry="2" />
+<text  x="631.62" y="927.5" >org/apache/hadoop/..</text>
+</g>
+<g >
+<title>org/apache/hadoop/test/MapredTestDriver.run (327 samples, 51.17%)</title><rect x="174.4" y="1397" width="603.8" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="177.35" y="1407.5" >org/apache/hadoop/test/MapredTestDriver.run</text>
+</g>
+<g >
+<title>ip_queue_xmit (10 samples, 1.56%)</title><rect x="43.2" y="917" width="18.5" height="15.0" fill="rgb(237,149,35)" rx="2" ry="2" />
+<text  x="46.24" y="927.5" ></text>
+</g>
+<g >
+<title>jdk/internal/loader/URLClassPath.getLoader (7 samples, 1.10%)</title><rect x="829.9" y="1365" width="12.9" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="832.91" y="1375.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/Client.call (9 samples, 1.41%)</title><rect x="203.9" y="677" width="16.6" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="206.90" y="687.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/authentication/util/SubjectUtil.doAs (9 samples, 1.41%)</title><rect x="606.5" y="1061" width="16.6" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="609.46" y="1071.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileContext$2.run (45 samples, 7.04%)</title><rect x="440.3" y="789" width="83.1" height="15.0" fill="rgb(212,36,8)" rx="2" ry="2" />
+<text  x="443.27" y="799.5" >org/apach..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/v2/api/impl/pb/client/MRClientProtocolPBClientImpl.getJobReport (15 samples, 2.35%)</title><rect x="240.8" y="725" width="27.7" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="243.83" y="735.5" >o..</text>
+</g>
+<g >
+<title>java/lang/invoke/DirectMethodHandle$Holder.invokeStatic (7 samples, 1.10%)</title><rect x="608.3" y="1013" width="12.9" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="611.31" y="1023.5" ></text>
+</g>
+<g >
+<title>JVM_GetStackAccessControlContext (7 samples, 1.10%)</title><rect x="292.5" y="949" width="13.0" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="295.54" y="959.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/security/UserGroupInformation.doAs (16 samples, 2.50%)</title><rect x="327.6" y="901" width="29.6" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="330.62" y="911.5" >or..</text>
+</g>
+<g >
+<title>sun/nio/ch/SocketChannelImpl.write (15 samples, 2.35%)</title><rect x="37.7" y="1349" width="27.7" height="15.0" fill="rgb(208,16,3)" rx="2" ry="2" />
+<text  x="40.70" y="1359.5" >s..</text>
+</g>
+<g >
+<title>LinearScan::do_linear_scan (14 samples, 2.19%)</title><rect x="975.8" y="1349" width="25.8" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="978.79" y="1359.5" >L..</text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.copyFromLocalFile (16 samples, 2.50%)</title><rect x="722.8" y="549" width="29.5" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="725.80" y="559.5" >or..</text>
+</g>
+<g >
+<title>java/security/AccessController.executePrivileged (7 samples, 1.10%)</title><rect x="137.4" y="1189" width="12.9" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="140.42" y="1199.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/ToolRunner.run (326 samples, 51.02%)</title><rect x="176.2" y="1237" width="602.0" height="15.0" fill="rgb(236,145,34)" rx="2" ry="2" />
+<text  x="179.20" y="1247.5" >org/apache/hadoop/util/ToolRunner.run</text>
+</g>
+<g >
+<title>jdk/internal/loader/BuiltinClassLoader.findClassOnClassPathOrNull (22 samples, 3.44%)</title><rect x="475.4" y="181" width="40.6" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="478.35" y="191.5" >jdk..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$11.run (16 samples, 2.50%)</title><rect x="327.6" y="693" width="29.6" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="330.62" y="703.5" >or..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject.callAs (12 samples, 1.88%)</title><rect x="556.6" y="1077" width="22.2" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="559.60" y="1087.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/api/impl/YarnClientImpl.serviceStart (20 samples, 3.13%)</title><rect x="401.5" y="997" width="36.9" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="404.49" y="1007.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/RMProxy.newProxyInstance (19 samples, 2.97%)</title><rect x="403.3" y="949" width="35.1" height="15.0" fill="rgb(237,147,35)" rx="2" ry="2" />
+<text  x="406.33" y="959.5" >or..</text>
+</g>
+<g >
+<title>java/util/zip/ZipFile$Source.&lt;init&gt; (7 samples, 1.10%)</title><rect x="137.4" y="1045" width="12.9" height="15.0" fill="rgb(245,188,45)" rx="2" ry="2" />
+<text  x="140.42" y="1055.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (7 samples, 1.10%)</title><rect x="137.4" y="1205" width="12.9" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="140.42" y="1215.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/ipc/RPC.getProtocolProxy (10 samples, 1.56%)</title><rect x="412.6" y="437" width="18.4" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="415.57" y="447.5" ></text>
+</g>
+<g >
+<title>__sock_sendmsg (12 samples, 1.88%)</title><rect x="43.2" y="1045" width="22.2" height="15.0" fill="rgb(223,87,20)" rx="2" ry="2" />
+<text  x="46.24" y="1055.5" >_..</text>
+</g>
+<g >
+<title>sun/launcher/LauncherHelper.checkAndLoadMain (7 samples, 1.10%)</title><rect x="829.9" y="1541" width="12.9" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="832.91" y="1551.5" ></text>
+</g>
+<g >
+<title>javax/security/auth/Subject.lambda$callAs$0 (21 samples, 3.29%)</title><rect x="318.4" y="981" width="38.8" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="321.39" y="991.5" >jav..</text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (327 samples, 51.17%)</title><rect x="174.4" y="1349" width="603.8" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="177.35" y="1359.5" >java/lang/reflect/Method.invoke</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapreduce/Job$1.run (7 samples, 1.10%)</title><rect x="608.3" y="869" width="12.9" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="611.31" y="879.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/fs/FileSystem.create (9 samples, 1.41%)</title><rect x="732.0" y="469" width="16.7" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="735.03" y="479.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/api/impl/YarnClientImpl.getYarnClusterMetrics (11 samples, 1.72%)</title><rect x="558.5" y="885" width="20.3" height="15.0" fill="rgb(218,62,14)" rx="2" ry="2" />
+<text  x="561.45" y="895.5" ></text>
+</g>
+<g >
+<title>java/io/FilterInputStream.read (15 samples, 2.35%)</title><rect x="93.1" y="1445" width="27.7" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="96.10" y="1455.5" >j..</text>
+</g>
+<g >
+<title>org/apache/hadoop/yarn/client/RMProxy.getProxy (15 samples, 2.35%)</title><rect x="410.7" y="901" width="27.7" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="413.72" y="911.5" >o..</text>
+</g>
+<g >
+<title>GraphBuilder::try_inline (13 samples, 2.03%)</title><rect x="870.5" y="1253" width="24.0" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="873.53" y="1263.5" >G..</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (45 samples, 7.04%)</title><rect x="440.3" y="837" width="83.1" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="443.27" y="847.5" >javax/sec..</text>
+</g>
+<g >
+<title>java/lang/reflect/Proxy$ProxyBuilder.referencedTypes (8 samples, 1.25%)</title><rect x="412.6" y="277" width="14.7" height="15.0" fill="rgb(207,12,3)" rx="2" ry="2" />
+<text  x="415.57" y="287.5" ></text>
+</g>
+<g >
+<title>java/security/AccessController.doPrivileged (45 samples, 7.04%)</title><rect x="440.3" y="869" width="83.1" height="15.0" fill="rgb(238,155,37)" rx="2" ry="2" />
+<text  x="443.27" y="879.5" >java/secu..</text>
+</g>
+<g >
+<title>java/lang/reflect/Method.invoke (10 samples, 1.56%)</title><rect x="560.3" y="773" width="18.5" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="563.30" y="783.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ResourceMgrDelegate.&lt;init&gt; (22 samples, 3.44%)</title><rect x="399.6" y="1061" width="40.7" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="402.64" y="1071.5" >org..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ClientServiceDelegate.invoke (19 samples, 2.97%)</title><rect x="235.3" y="837" width="35.1" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="238.29" y="847.5" >or..</text>
+</g>
+<g >
+<title>java/lang/Class.forName (7 samples, 1.10%)</title><rect x="829.9" y="1493" width="12.9" height="15.0" fill="rgb(216,52,12)" rx="2" ry="2" />
+<text  x="832.91" y="1503.5" ></text>
+</g>
+<g >
+<title>org/apache/hadoop/util/RunJar.run (355 samples, 55.56%)</title><rect x="170.7" y="1525" width="655.5" height="15.0" fill="rgb(219,66,15)" rx="2" ry="2" />
+<text  x="173.66" y="1535.5" >org/apache/hadoop/util/RunJar.run</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (76 samples, 11.89%)</title><rect x="636.0" y="741" width="140.4" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="639.01" y="751.5" >javax/security/au..</text>
+</g>
+<g >
+<title>sun/nio/ch/SocketDispatcher.write (13 samples, 2.03%)</title><rect x="41.4" y="1285" width="24.0" height="15.0" fill="rgb(247,197,47)" rx="2" ry="2" />
+<text  x="44.39" y="1295.5" >s..</text>
+</g>
+<g >
+<title>org/apache/hadoop/mapred/ThreadedMapBenchmark.main (326 samples, 51.02%)</title><rect x="176.2" y="1253" width="602.0" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="179.20" y="1263.5" >org/apache/hadoop/mapred/ThreadedMapBenchmark.main</text>
+</g>
+<g >
+<title>javax/security/auth/Subject$$Lambda.0x000000200109de90.run (14 samples, 2.19%)</title><rect x="202.1" y="965" width="25.8" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="205.05" y="975.5" >j..</text>
+</g>
+</g>
+</svg>

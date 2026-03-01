@@ -1,0 +1,270 @@
+symbol,file,line,type,prompt,depends_on,selects,implies,default
+ARM64,arch/arm64/Kconfig,2,,,,ACPI_APMT if ACPI ; ACPI_CCA_REQUIRED if ACPI ; ACPI_GENERIC_GSI if ACPI ; ACPI_GTDT if ACPI ; ACPI_HOTPLUG_CPU if ACPI_PROCESSOR && HOTPLUG_CPU ; ACPI_IORT if ACPI ; ACPI_REDUCED_HARDWARE_ONLY if ACPI ; ACPI_MCFG if (ACPI && PCI) ; ACPI_SPCR_TABLE if ACPI ; ACPI_PPTT if ACPI ; ARCH_HAS_DEBUG_WX ; ARCH_BINFMT_ELF_EXTRA_PHDRS ; ARCH_BINFMT_ELF_STATE ; ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION ; ARCH_ENABLE_MEMORY_HOTPLUG ; ARCH_ENABLE_MEMORY_HOTREMOVE ; ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2 ; ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE ; ARCH_HAS_CACHE_LINE_SIZE ; ARCH_HAS_CC_PLATFORM ; ARCH_HAS_CPU_CACHE_INVALIDATE_MEMREGION ; ARCH_HAS_CURRENT_STACK_POINTER ; ARCH_HAS_DEBUG_VIRTUAL ; ARCH_HAS_DEBUG_VM_PGTABLE ; ARCH_HAS_DMA_OPS if XEN ; ARCH_HAS_DMA_PREP_COHERENT ; ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI ; ARCH_HAS_FAST_MULTIPLIER ; ARCH_HAS_FORTIFY_SOURCE ; ARCH_HAS_GCOV_PROFILE_ALL ; ARCH_HAS_GIGANTIC_PAGE ; ARCH_HAS_KCOV ; ARCH_HAS_KERNEL_FPU_SUPPORT if KERNEL_MODE_NEON ; ARCH_HAS_KEEPINITRD ; ARCH_HAS_LAZY_MMU_MODE ; ARCH_HAS_MEMBARRIER_SYNC_CORE ; ARCH_HAS_MEM_ENCRYPT ; ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS ; ARCH_HAS_NMI_SAFE_THIS_CPU_OPS ; ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE ; ARCH_HAS_NONLEAF_PMD_YOUNG if ARM64_HAFT ; ARCH_HAS_PREEMPT_LAZY ; ARCH_HAS_PTDUMP ; ARCH_HAS_PTE_SPECIAL ; ARCH_HAS_HW_PTE_YOUNG ; ARCH_HAS_SETUP_DMA_OPS ; ARCH_HAS_SET_DIRECT_MAP ; ARCH_HAS_SET_MEMORY ; ARCH_HAS_FORCE_DMA_UNENCRYPTED ; ARCH_STACKWALK ; ARCH_HAS_STRICT_KERNEL_RWX ; ARCH_HAS_STRICT_MODULE_RWX ; ARCH_HAS_SYNC_DMA_FOR_DEVICE ; ARCH_HAS_SYNC_DMA_FOR_CPU ; ARCH_HAS_SYSCALL_WRAPPER ; ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST ; ARCH_HAS_ZONE_DMA_SET if EXPERT ; ARCH_HAVE_ELF_PROT ; ARCH_HAVE_NMI_SAFE_CMPXCHG ; ARCH_HAVE_TRACE_MMIO_ACCESS ; ARCH_INLINE_READ_LOCK if !PREEMPTION ; ARCH_INLINE_READ_LOCK_BH if !PREEMPTION ; ARCH_INLINE_READ_LOCK_IRQ if !PREEMPTION ; ARCH_INLINE_READ_LOCK_IRQSAVE if !PREEMPTION ; ARCH_INLINE_READ_UNLOCK if !PREEMPTION ; ARCH_INLINE_READ_UNLOCK_BH if !PREEMPTION ; ARCH_INLINE_READ_UNLOCK_IRQ if !PREEMPTION ; ARCH_INLINE_READ_UNLOCK_IRQRESTORE if !PREEMPTION ; ARCH_INLINE_WRITE_LOCK if !PREEMPTION ; ARCH_INLINE_WRITE_LOCK_BH if !PREEMPTION ; ARCH_INLINE_WRITE_LOCK_IRQ if !PREEMPTION ; ARCH_INLINE_WRITE_LOCK_IRQSAVE if !PREEMPTION ; ARCH_INLINE_WRITE_UNLOCK if !PREEMPTION ; ARCH_INLINE_WRITE_UNLOCK_BH if !PREEMPTION ; ARCH_INLINE_WRITE_UNLOCK_IRQ if !PREEMPTION ; ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE if !PREEMPTION ; ARCH_INLINE_SPIN_TRYLOCK if !PREEMPTION ; ARCH_INLINE_SPIN_TRYLOCK_BH if !PREEMPTION ; ARCH_INLINE_SPIN_LOCK if !PREEMPTION ; ARCH_INLINE_SPIN_LOCK_BH if !PREEMPTION ; ARCH_INLINE_SPIN_LOCK_IRQ if !PREEMPTION ; ARCH_INLINE_SPIN_LOCK_IRQSAVE if !PREEMPTION ; ARCH_INLINE_SPIN_UNLOCK if !PREEMPTION ; ARCH_INLINE_SPIN_UNLOCK_BH if !PREEMPTION ; ARCH_INLINE_SPIN_UNLOCK_IRQ if !PREEMPTION ; ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE if !PREEMPTION ; ARCH_KEEP_MEMBLOCK ; ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE ; ARCH_USE_CMPXCHG_LOCKREF ; ARCH_USE_GNU_PROPERTY ; ARCH_USE_MEMTEST ; ARCH_USE_QUEUED_RWLOCKS ; ARCH_USE_QUEUED_SPINLOCKS ; ARCH_USE_SYM_ANNOTATIONS ; ARCH_SUPPORTS_DEBUG_PAGEALLOC ; ARCH_SUPPORTS_HUGETLBFS ; ARCH_SUPPORTS_MEMORY_FAILURE ; ARCH_SUPPORTS_SHADOW_CALL_STACK if CC_HAVE_SHADOW_CALL_STACK ; ARCH_SUPPORTS_LTO_CLANG if CPU_LITTLE_ENDIAN ; ARCH_SUPPORTS_LTO_CLANG_THIN ; ARCH_SUPPORTS_CFI ; ARCH_SUPPORTS_ATOMIC_RMW ; ARCH_SUPPORTS_INT128 if CC_HAS_INT128 ; ARCH_SUPPORTS_NUMA_BALANCING ; ARCH_SUPPORTS_PAGE_TABLE_CHECK ; ARCH_SUPPORTS_PER_VMA_LOCK ; ARCH_SUPPORTS_HUGE_PFNMAP if TRANSPARENT_HUGEPAGE ; ARCH_SUPPORTS_RT ; ARCH_SUPPORTS_SCHED_SMT ; ARCH_SUPPORTS_SCHED_CLUSTER ; ARCH_SUPPORTS_SCHED_MC ; ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH ; ARCH_WANT_COMPAT_IPC_PARSE_VERSION if COMPAT ; ARCH_WANT_DEFAULT_BPF_JIT ; ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT ; ARCH_WANT_FRAME_POINTERS ; ARCH_WANT_HUGE_PMD_SHARE if ARM64_4K_PAGES || (ARM64_16K_PAGES && !ARM64_VA_BITS_36) ; ARCH_WANT_LD_ORPHAN_WARN ; ARCH_WANTS_EXECMEM_LATE ; ARCH_WANTS_NO_INSTR ; ARCH_WANTS_THP_SWAP if ARM64_4K_PAGES ; ARCH_HAS_UBSAN ; ARM_AMBA ; ARM_ARCH_TIMER ; ARM_GIC ; AUDIT_ARCH_COMPAT_GENERIC ; ARM_GIC_V2M if PCI ; ARM_GIC_V3 ; ARM_GIC_V3_ITS if PCI ; ARM_GIC_V5 ; ARM_PSCI_FW ; BUILDTIME_TABLE_SORT ; CLONE_BACKWARDS ; COMMON_CLK ; CPU_PM if (SUSPEND || CPU_IDLE) ; CPUMASK_OFFSTACK if NR_CPUS > 256 ; DCACHE_WORD_ACCESS ; HAVE_EXTRA_IPI_TRACEPOINTS ; DYNAMIC_FTRACE if FUNCTION_TRACER ; DMA_BOUNCE_UNALIGNED_KMALLOC ; DMA_DIRECT_REMAP ; EDAC_SUPPORT ; FRAME_POINTER ; FUNCTION_ALIGNMENT_4B ; FUNCTION_ALIGNMENT_8B if DYNAMIC_FTRACE_WITH_CALL_OPS ; GENERIC_ALLOCATOR ; GENERIC_ARCH_TOPOLOGY ; GENERIC_CLOCKEVENTS_BROADCAST ; GENERIC_CPU_AUTOPROBE ; GENERIC_CPU_CACHE_MAINTENANCE ; GENERIC_CPU_DEVICES ; GENERIC_CPU_VULNERABILITIES ; GENERIC_EARLY_IOREMAP ; GENERIC_IDLE_POLL_SETUP ; GENERIC_IOREMAP ; GENERIC_IRQ_ENTRY ; GENERIC_IRQ_IPI ; GENERIC_IRQ_KEXEC_CLEAR_VM_FORWARD ; GENERIC_IRQ_PROBE ; GENERIC_IRQ_SHOW ; GENERIC_IRQ_SHOW_LEVEL ; GENERIC_LIB_DEVMEM_IS_ALLOWED ; GENERIC_PCI_IOMAP ; GENERIC_SCHED_CLOCK ; GENERIC_SMP_IDLE_THREAD ; GENERIC_TIME_VSYSCALL ; GENERIC_GETTIMEOFDAY ; HARDIRQS_SW_RESEND ; HAS_IOPORT ; HAVE_MOVE_PMD ; HAVE_MOVE_PUD ; HAVE_PCI ; HAVE_ACPI_APEI if (ACPI && EFI) ; HAVE_ALIGNED_STRUCT_PAGE ; HAVE_ARCH_AUDITSYSCALL ; HAVE_ARCH_BITREVERSE ; HAVE_ARCH_COMPILER_H ; HAVE_ARCH_HUGE_VMALLOC ; HAVE_ARCH_HUGE_VMAP ; HAVE_ARCH_JUMP_LABEL ; HAVE_ARCH_JUMP_LABEL_RELATIVE ; HAVE_ARCH_KASAN ; HAVE_ARCH_KASAN_VMALLOC ; HAVE_ARCH_KASAN_SW_TAGS ; HAVE_ARCH_KASAN_HW_TAGS if ARM64_MTE ; HAVE_ARCH_KCSAN if EXPERT ; HAVE_ARCH_KFENCE ; HAVE_ARCH_KGDB ; HAVE_ARCH_KSTACK_ERASE ; HAVE_ARCH_MMAP_RND_BITS ; HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT ; HAVE_ARCH_PREL32_RELOCATIONS ; HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET ; HAVE_ARCH_SECCOMP_FILTER ; HAVE_ARCH_THREAD_STRUCT_WHITELIST ; HAVE_ARCH_TRACEHOOK ; HAVE_ARCH_TRANSPARENT_HUGEPAGE ; HAVE_ARCH_VMAP_STACK ; HAVE_ARM_SMCCC ; HAVE_ASM_MODVERSIONS ; HAVE_EBPF_JIT ; HAVE_C_RECORDMCOUNT ; HAVE_CMPXCHG_DOUBLE ; HAVE_CMPXCHG_LOCAL ; HAVE_CONTEXT_TRACKING_USER ; HAVE_DEBUG_KMEMLEAK ; HAVE_DMA_CONTIGUOUS ; HAVE_DYNAMIC_FTRACE ; HAVE_DYNAMIC_FTRACE_WITH_ARGS \ ; HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS \ ; HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS \ ; FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \ ; HAVE_SAMPLE_FTRACE_DIRECT ; HAVE_SAMPLE_FTRACE_DIRECT_MULTI ; HAVE_BUILDTIME_MCOUNT_SORT ; HAVE_EFFICIENT_UNALIGNED_ACCESS ; HAVE_GUP_FAST ; HAVE_FTRACE_GRAPH_FUNC ; HAVE_FUNCTION_TRACER ; HAVE_FUNCTION_ERROR_INJECTION ; HAVE_FUNCTION_GRAPH_FREGS ; HAVE_FUNCTION_GRAPH_TRACER ; HAVE_GCC_PLUGINS ; HAVE_HARDLOCKUP_DETECTOR_PERF if PERF_EVENTS && \ ; HAVE_HW_BREAKPOINT if PERF_EVENTS ; HAVE_IOREMAP_PROT ; HAVE_IRQ_TIME_ACCOUNTING ; HAVE_LIVEPATCH ; HAVE_MOD_ARCH_SPECIFIC ; HAVE_NMI ; HAVE_PERF_EVENTS ; HAVE_PERF_EVENTS_NMI if ARM64_PSEUDO_NMI ; HAVE_PERF_REGS ; HAVE_PERF_USER_STACK_DUMP ; HAVE_PREEMPT_DYNAMIC_KEY ; HAVE_REGS_AND_STACK_ACCESS_API ; HAVE_RELIABLE_STACKTRACE ; HAVE_POSIX_CPU_TIMERS_TASK_WORK ; HAVE_FUNCTION_ARG_ACCESS_API ; MMU_GATHER_RCU_TABLE_FREE ; HAVE_RSEQ ; HAVE_RUST if RUSTC_SUPPORTS_ARM64 ; HAVE_STACKPROTECTOR ; HAVE_SYSCALL_TRACEPOINTS ; HAVE_KPROBES ; HAVE_KRETPROBES ; HAVE_GENERIC_VDSO ; HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU ; HOTPLUG_SMT if HOTPLUG_CPU ; IRQ_DOMAIN ; IRQ_FORCED_THREADING ; JUMP_LABEL ; KASAN_VMALLOC if KASAN ; LOCK_MM_AND_FIND_VMA ; MODULES_USE_ELF_RELA ; NEED_DMA_MAP_STATE ; NEED_SG_DMA_LENGTH ; OF ; OF_EARLY_FLATTREE ; PCI_DOMAINS_GENERIC if PCI ; PCI_ECAM if (ACPI && PCI) ; PCI_SYSCALL if PCI ; POWER_RESET ; POWER_SUPPLY ; SPARSE_IRQ ; SWIOTLB ; SYSCTL_EXCEPTION_TRACE ; THREAD_INFO_IN_TASK ; HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD ; HAVE_ARCH_USERFAULTFD_WP if USERFAULTFD ; TRACE_IRQFLAGS_SUPPORT ; TRACE_IRQFLAGS_NMI_SUPPORT ; HAVE_SOFTIRQ_ON_OWN_STACK ; USER_STACKTRACE_SUPPORT ; VDSO_GETRANDOM ; VMAP_STACK,,
+RUSTC_SUPPORTS_ARM64,arch/arm64/Kconfig,291,,,CPU_LITTLE_ENDIAN && !SHADOW_CALL_STACK || RUSTC_VERSION >= 108200 || RUSTC_VERSION >= 108000 && UNWIND_PATCH_PAC_INTO_SCS,,,
+CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS,arch/arm64/Kconfig,303,,,AS_IS_GNU || (AS_IS_LLVM && (LD_IS_LLD || LD_VERSION >= 23600)),,,
+GCC_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS,arch/arm64/Kconfig,308,,,"$(cc-option,-fpatchable-function-entry=2)",,,
+64BIT,arch/arm64/Kconfig,312,,,,,,
+MMU,arch/arm64/Kconfig,315,,,,,,
+ARM64_CONT_PTE_SHIFT,arch/arm64/Kconfig,318,int,,,,,5 if PAGE_SIZE_64KB ; 7 if PAGE_SIZE_16KB ; 4
+ARM64_CONT_PMD_SHIFT,arch/arm64/Kconfig,324,int,,,,,5 if PAGE_SIZE_64KB ; 5 if PAGE_SIZE_16KB ; 4
+ARCH_MMAP_RND_BITS_MIN,arch/arm64/Kconfig,330,,,,,,14 if PAGE_SIZE_64KB ; 16 if PAGE_SIZE_16KB ; 18
+ARCH_MMAP_RND_BITS_MAX,arch/arm64/Kconfig,337,,,,,,19 if ARM64_VA_BITS=36 ; 24 if ARM64_VA_BITS=39 ; 27 if ARM64_VA_BITS=42 ; 30 if ARM64_VA_BITS=47 ; 29 if (ARM64_VA_BITS=48 || ARM64_VA_BITS=52) && ARM64_64K_PAGES ; 31 if (ARM64_VA_BITS=48 || ARM64_VA_BITS=52) && ARM64_16K_PAGES ; 33 if (ARM64_VA_BITS=48 || ARM64_VA_BITS=52) ; 14 if ARM64_64K_PAGES ; 16 if ARM64_16K_PAGES ; 18
+ARCH_MMAP_RND_COMPAT_BITS_MIN,arch/arm64/Kconfig,349,,,,,,7 if ARM64_64K_PAGES ; 9 if ARM64_16K_PAGES ; 11
+ARCH_MMAP_RND_COMPAT_BITS_MAX,arch/arm64/Kconfig,354,,,,,,16
+NO_IOPORT_MAP,arch/arm64/Kconfig,357,,,,,,
+STACKTRACE_SUPPORT,arch/arm64/Kconfig,360,,,,,,
+ILLEGAL_POINTER_VALUE,arch/arm64/Kconfig,363,hex,,,,,0xdead000000000000
+LOCKDEP_SUPPORT,arch/arm64/Kconfig,367,,,,,,
+GENERIC_BUG,arch/arm64/Kconfig,370,,,BUG,,,
+GENERIC_BUG_RELATIVE_POINTERS,arch/arm64/Kconfig,374,,,GENERIC_BUG,,,
+GENERIC_HWEIGHT,arch/arm64/Kconfig,378,,,,,,
+GENERIC_CSUM,arch/arm64/Kconfig,381,,,,,,
+GENERIC_CALIBRATE_DELAY,arch/arm64/Kconfig,384,,,,,,
+SMP,arch/arm64/Kconfig,387,,,,,,
+KERNEL_MODE_NEON,arch/arm64/Kconfig,390,,,,,,
+FIX_EARLYCON_MEM,arch/arm64/Kconfig,393,,,,,,
+PGTABLE_LEVELS,arch/arm64/Kconfig,396,int,,,,,2 if ARM64_16K_PAGES && ARM64_VA_BITS_36 ; 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42 ; 3 if ARM64_64K_PAGES && (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) ; 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39 ; 3 if ARM64_16K_PAGES && ARM64_VA_BITS_47 ; 4 if ARM64_16K_PAGES && (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) ; 4 if !ARM64_64K_PAGES && ARM64_VA_BITS_48 ; 5 if ARM64_4K_PAGES && ARM64_VA_BITS_52
+ARCH_SUPPORTS_UPROBES,arch/arm64/Kconfig,407,,,,,,
+ARCH_PROC_KCORE_TEXT,arch/arm64/Kconfig,410,,,,,,
+BROKEN_GAS_INST,arch/arm64/Kconfig,413,,,,,,
+BUILTIN_RETURN_ADDRESS_STRIPS_PAC,arch/arm64/Kconfig,416,bool,,,,,y if CC_IS_CLANG ; y if CC_IS_GCC && (GCC_VERSION >= 110100) ; y if CC_IS_GCC && (GCC_VERSION >= 100200) && (GCC_VERSION < 110000) ; y if CC_IS_GCC && (GCC_VERSION >=  90400) && (GCC_VERSION < 100000) ; y if CC_IS_GCC && (GCC_VERSION >=  80500) && (GCC_VERSION <  90000) ; n
+KASAN_SHADOW_OFFSET,arch/arm64/Kconfig,430,hex,,KASAN_GENERIC || KASAN_SW_TAGS,,,0xdfff800000000000 if (ARM64_VA_BITS_48 || (ARM64_VA_BITS_52 && !ARM64_16K_PAGES)) && !KASAN_SW_TAGS ; 0xdfffc00000000000 if (ARM64_VA_BITS_47 || ARM64_VA_BITS_52) && ARM64_16K_PAGES && !KASAN_SW_TAGS ; 0xdffffe0000000000 if ARM64_VA_BITS_42 && !KASAN_SW_TAGS ; 0xdfffffc000000000 if ARM64_VA_BITS_39 && !KASAN_SW_TAGS ; 0xdffffff800000000 if ARM64_VA_BITS_36 && !KASAN_SW_TAGS ; 0xefff800000000000 if (ARM64_VA_BITS_48 || (ARM64_VA_BITS_52 && !ARM64_16K_PAGES)) && KASAN_SW_TAGS ; 0xefffc00000000000 if (ARM64_VA_BITS_47 || ARM64_VA_BITS_52) && ARM64_16K_PAGES && KASAN_SW_TAGS ; 0xeffffe0000000000 if ARM64_VA_BITS_42 && KASAN_SW_TAGS ; 0xefffffc000000000 if ARM64_VA_BITS_39 && KASAN_SW_TAGS ; 0xeffffff800000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS ; 0xffffffffffffffff
+UNWIND_TABLES,arch/arm64/Kconfig,445,bool,,,,,
+AMPERE_ERRATUM_AC03_CPU_38,arch/arm64/Kconfig,454,bool,AmpereOne: AC03_CPU_38: Certain bits in the Virtualization Translation Control Register and Translation Control Registers do not follow RES0 semantics,,,,y
+AMPERE_ERRATUM_AC04_CPU_23,arch/arm64/Kconfig,473,bool,AmpereOne: AC04_CPU_23:  Failure to synchronize writes to HCR_EL2 may corrupt address translations.,,,,y
+ARM64_WORKAROUND_CLEAN_CACHE,arch/arm64/Kconfig,490,bool,,,,,
+ARM64_ERRATUM_826319,arch/arm64/Kconfig,493,bool,Cortex-A53: 826319: System might deadlock if a write cannot complete until read data is accepted,,ARM64_WORKAROUND_CLEAN_CACHE,,y
+ARM64_ERRATUM_827319,arch/arm64/Kconfig,515,bool,Cortex-A53: 827319: Data cache clean instructions might cause overlapping transactions to the interconnect,,ARM64_WORKAROUND_CLEAN_CACHE,,y
+ARM64_ERRATUM_824069,arch/arm64/Kconfig,537,bool,Cortex-A53: 824069: Cache line might not be marked as clean after a CleanShared snoop,,ARM64_WORKAROUND_CLEAN_CACHE,,y
+ARM64_ERRATUM_819472,arch/arm64/Kconfig,560,bool,Cortex-A53: 819472: Store exclusive instructions might cause data corruption,,ARM64_WORKAROUND_CLEAN_CACHE,,y
+ARM64_ERRATUM_832075,arch/arm64/Kconfig,582,bool,Cortex-A57: 832075: possible deadlock on mixing exclusive memory accesses with device loads,,,,y
+ARM64_ERRATUM_834220,arch/arm64/Kconfig,600,bool,Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault (rare),KVM,,,
+ARM64_ERRATUM_1742098,arch/arm64/Kconfig,620,bool,Cortex-A57/A72: 1742098: ELR recorded incorrectly on interrupt taken between cryptographic instructions in a sequence,COMPAT,,,y
+ARM64_ERRATUM_845719,arch/arm64/Kconfig,636,bool,Cortex-A53: 845719: a load might read incorrect data,COMPAT,,,y
+ARM64_ERRATUM_843419,arch/arm64/Kconfig,657,bool,Cortex-A53: 843419: A load or store might access an incorrect address,,,,y
+ARM64_ERRATUM_1024718,arch/arm64/Kconfig,668,bool,Cortex-A55: 1024718: Update of DBM/AP bits without break before make might result in incorrect update,,,,y
+ARM64_ERRATUM_1418040,arch/arm64/Kconfig,682,bool,Cortex-A76/Neoverse-N1: MRC read following MRRC read of specific Generic Timer in AArch32 might give incorrect result,COMPAT,,,y
+ARM64_WORKAROUND_SPECULATIVE_AT,arch/arm64/Kconfig,696,bool,,,,,
+ARM64_ERRATUM_1165522,arch/arm64/Kconfig,699,bool,Cortex-A76: 1165522: Speculative AT instruction using out-of-context translation regime could cause subsequent request to generate an incorrect translation,,ARM64_WORKAROUND_SPECULATIVE_AT,,y
+ARM64_ERRATUM_1319367,arch/arm64/Kconfig,712,bool,Cortex-A57/A72: 1319537: Speculative AT instruction using out-of-context translation regime could cause subsequent request to generate an incorrect translation,,ARM64_WORKAROUND_SPECULATIVE_AT,,y
+ARM64_ERRATUM_1530923,arch/arm64/Kconfig,725,bool,Cortex-A55: 1530923: Speculative AT instruction using out-of-context translation regime could cause subsequent request to generate an incorrect translation,,ARM64_WORKAROUND_SPECULATIVE_AT,,y
+ARM64_WORKAROUND_REPEAT_TLBI,arch/arm64/Kconfig,738,bool,,,,,
+ARM64_ERRATUM_2441007,arch/arm64/Kconfig,741,bool,Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare),,ARM64_WORKAROUND_REPEAT_TLBI,,
+ARM64_ERRATUM_1286807,arch/arm64/Kconfig,757,bool,Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation (rare),,ARM64_WORKAROUND_REPEAT_TLBI,,
+ARM64_ERRATUM_1463225,arch/arm64/Kconfig,774,bool,Cortex-A76: Software Step might prevent interrupt recognition,,,,y
+ARM64_ERRATUM_1542419,arch/arm64/Kconfig,792,bool,Neoverse-N1: workaround mis-ordering of instruction fetches (rare),,,,
+ARM64_ERRATUM_1508412,arch/arm64/Kconfig,807,bool,Cortex-A77: 1508412: workaround deadlock on sequence of NC/Device load and store exclusive or PAR read,,,,y
+ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,arch/arm64/Kconfig,827,bool,,,,,
+ARM64_ERRATUM_2051678,arch/arm64/Kconfig,830,bool,Cortex-A510: 2051678: disable Hardware Update of the page table dirty bit,,,,y
+ARM64_ERRATUM_2077057,arch/arm64/Kconfig,841,bool,Cortex-A510: 2077057: workaround software-step corrupting SPSR_EL2,,,,y
+ARM64_ERRATUM_2658417,arch/arm64/Kconfig,858,bool,Cortex-A510: 2658417: remove BF16 support due to incorrect result,,,,y
+ARM64_ERRATUM_2119858,arch/arm64/Kconfig,871,bool,Cortex-A710/X2: 2119858: workaround TRBE overwriting trace data in FILL mode,CORESIGHT_TRBE,ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,,y
+ARM64_ERRATUM_2139208,arch/arm64/Kconfig,889,bool,Neoverse-N2: 2139208: workaround TRBE overwriting trace data in FILL mode,CORESIGHT_TRBE,ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,,y
+ARM64_WORKAROUND_TSB_FLUSH_FAILURE,arch/arm64/Kconfig,907,bool,,,,,
+ARM64_ERRATUM_2054223,arch/arm64/Kconfig,910,bool,Cortex-A710: 2054223: workaround TSB instruction failing to flush trace,,ARM64_WORKAROUND_TSB_FLUSH_FAILURE,,y
+ARM64_ERRATUM_2067961,arch/arm64/Kconfig,925,bool,Neoverse-N2: 2067961: workaround TSB instruction failing to flush trace,,ARM64_WORKAROUND_TSB_FLUSH_FAILURE,,y
+ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE,arch/arm64/Kconfig,940,bool,,,,,
+ARM64_ERRATUM_2253138,arch/arm64/Kconfig,943,bool,Neoverse-N2: 2253138: workaround TRBE writing to address out-of-range,CORESIGHT_TRBE,ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE,,y
+ARM64_ERRATUM_2224489,arch/arm64/Kconfig,961,bool,Cortex-A710/X2: 2224489: workaround TRBE writing to address out-of-range,CORESIGHT_TRBE,ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE,,y
+ARM64_ERRATUM_2441009,arch/arm64/Kconfig,979,bool,Cortex-A510: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare),,ARM64_WORKAROUND_REPEAT_TLBI,,
+ARM64_ERRATUM_2064142,arch/arm64/Kconfig,995,bool,Cortex-A510: 2064142: workaround TRBE register writes while disabled,CORESIGHT_TRBE,,,y
+ARM64_ERRATUM_2038923,arch/arm64/Kconfig,1013,bool,Cortex-A510: 2038923: workaround TRBE corruption with enable,CORESIGHT_TRBE,,,y
+ARM64_ERRATUM_1902691,arch/arm64/Kconfig,1036,bool,Cortex-A510: 1902691: workaround TRBE trace corruption,CORESIGHT_TRBE,,,y
+ARM64_ERRATUM_2457168,arch/arm64/Kconfig,1054,bool,Cortex-A510: 2457168: workaround for AMEVCNTR01 incrementing incorrectly,ARM64_AMU_EXTN,,,y
+ARM64_ERRATUM_2645198,arch/arm64/Kconfig,1071,bool,Cortex-A715: 2645198: Workaround possible [ESR|FAR]_ELx corruption,,,,y
+ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD,arch/arm64/Kconfig,1087,bool,,,,,
+ARM64_ERRATUM_2966298,arch/arm64/Kconfig,1090,bool,Cortex-A520: 2966298: workaround for speculatively executed unprivileged load,,ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD,,y
+ARM64_ERRATUM_3117295,arch/arm64/Kconfig,1104,bool,Cortex-A510: 3117295: workaround for speculatively executed unprivileged load,,ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD,,y
+ARM64_ERRATUM_3194386,arch/arm64/Kconfig,1118,bool,Cortex-*/Neoverse-*: workaround for MSR SSBS not self-synchronizing,,,,y
+ARM64_ERRATUM_4311569,arch/arm64/Kconfig,1159,bool,SI L1: 4311569: workaround for premature CMO completion erratum,,,,y
+CAVIUM_ERRATUM_22375,arch/arm64/Kconfig,1178,bool,"Cavium erratum 22375, 24313",,,,y
+CAVIUM_ERRATUM_23144,arch/arm64/Kconfig,1195,bool,Cavium erratum 23144: ITS SYNC hang on dual socket system,NUMA,,,y
+CAVIUM_ERRATUM_23154,arch/arm64/Kconfig,1204,bool,Cavium errata 23154 and 38545: GICv3 lacks HW synchronisation,,,,y
+CAVIUM_ERRATUM_27456,arch/arm64/Kconfig,1218,bool,Cavium erratum 27456: Broadcast TLBI instructions may cause icache corruption,,,,y
+CAVIUM_ERRATUM_30115,arch/arm64/Kconfig,1229,bool,Cavium erratum 30115: Guest may disable interrupts in host,,,,y
+CAVIUM_TX2_ERRATUM_219,arch/arm64/Kconfig,1240,bool,Cavium ThunderX2 erratum 219: PRFM between TTBR change and ISB fails,,,,y
+FUJITSU_ERRATUM_010001,arch/arm64/Kconfig,1257,bool,Fujitsu-A64FX erratum E#010001: Undefined fault may occur wrongly,,,,y
+HISILICON_ERRATUM_161600802,arch/arm64/Kconfig,1276,bool,Hip07 161600802: Erroneous redistributor VLPI base,,,,y
+HISILICON_ERRATUM_162100801,arch/arm64/Kconfig,1286,bool,Hip09 162100801 erratum support,,,,y
+QCOM_FALKOR_ERRATUM_1003,arch/arm64/Kconfig,1297,bool,Falkor E1003: Incorrect translation due to ASID change,,,,y
+QCOM_FALKOR_ERRATUM_1009,arch/arm64/Kconfig,1308,bool,Falkor E1009: Prematurely complete a DSB after a TLBI,,ARM64_WORKAROUND_REPEAT_TLBI,,y
+QCOM_QDF2400_ERRATUM_0065,arch/arm64/Kconfig,1319,bool,QDF2400 E0065: Incorrect GITS_TYPER.ITT_Entry_size,,,,y
+QCOM_FALKOR_ERRATUM_E1041,arch/arm64/Kconfig,1329,bool,Falkor E1041: Speculative instruction fetches might cause errant memory access,,,,y
+NVIDIA_CARMEL_CNP_ERRATUM,arch/arm64/Kconfig,1339,bool,NVIDIA Carmel CNP: CNP on Carmel semantically different than ARM cores,,,,y
+ROCKCHIP_ERRATUM_3568002,arch/arm64/Kconfig,1349,bool,Rockchip 3568002: GIC600 can not access physical addresses higher than 4GB,,,,y
+ROCKCHIP_ERRATUM_3588001,arch/arm64/Kconfig,1358,bool,Rockchip 3588001: GIC600 can not support shareability attributes,,,,y
+SOCIONEXT_SYNQUACER_PREITS,arch/arm64/Kconfig,1368,bool,Socionext Synquacer: Workaround for GICv3 pre-ITS,,,,y ; ARM64_4K_PAGES
+ARM64_4K_PAGES,arch/arm64/Kconfig,1385,bool,4KB,,HAVE_PAGE_SIZE_4KB,,
+ARM64_16K_PAGES,arch/arm64/Kconfig,1391,bool,16KB,,HAVE_PAGE_SIZE_16KB,,
+ARM64_64K_PAGES,arch/arm64/Kconfig,1399,bool,64KB,,HAVE_PAGE_SIZE_64KB,,ARM64_VA_BITS_52
+ARM64_VA_BITS_36,arch/arm64/Kconfig,1418,bool,36-bit,PAGE_SIZE_16KB,,,
+ARM64_VA_BITS_39,arch/arm64/Kconfig,1422,bool,39-bit,PAGE_SIZE_4KB,,,
+ARM64_VA_BITS_42,arch/arm64/Kconfig,1426,bool,42-bit,PAGE_SIZE_64KB,,,
+ARM64_VA_BITS_47,arch/arm64/Kconfig,1430,bool,47-bit,PAGE_SIZE_16KB,,,
+ARM64_VA_BITS_48,arch/arm64/Kconfig,1434,bool,48-bit,,,,
+ARM64_VA_BITS_52,arch/arm64/Kconfig,1437,bool,52-bit,,,,
+ARM64_FORCE_52BIT,arch/arm64/Kconfig,1454,bool,Force 52-bit virtual addresses for userspace,ARM64_VA_BITS_52 && EXPERT,,,
+ARM64_VA_BITS,arch/arm64/Kconfig,1467,int,,,,,36 if ARM64_VA_BITS_36 ; 39 if ARM64_VA_BITS_39 ; 42 if ARM64_VA_BITS_42 ; 47 if ARM64_VA_BITS_47 ; 48 if ARM64_VA_BITS_48 ; 52 if ARM64_VA_BITS_52 ; ARM64_PA_BITS_48
+ARM64_PA_BITS_48,arch/arm64/Kconfig,1483,bool,48-bit,ARM64_64K_PAGES || !ARM64_VA_BITS_52,,,
+ARM64_PA_BITS_52,arch/arm64/Kconfig,1487,bool,52-bit,ARM64_64K_PAGES || ARM64_VA_BITS_52,,,
+ARM64_PA_BITS,arch/arm64/Kconfig,1500,int,,,,,48 if ARM64_PA_BITS_48 ; 52 if ARM64_PA_BITS_52
+ARM64_LPA2,arch/arm64/Kconfig,1505,,,ARM64_PA_BITS_52 && !ARM64_64K_PAGES,,,CPU_LITTLE_ENDIAN
+CPU_BIG_ENDIAN,arch/arm64/Kconfig,1517,bool,Build big-endian kernel,BROKEN,,,
+CPU_LITTLE_ENDIAN,arch/arm64/Kconfig,1523,bool,Build little-endian kernel,,,,
+NR_CPUS,arch/arm64/Kconfig,1531,int,Maximum number of CPUs (2-4096),,,,"""512"""
+HOTPLUG_CPU,arch/arm64/Kconfig,1536,bool,Support for hot-pluggable CPUs,,GENERIC_IRQ_MIGRATION,,
+NUMA,arch/arm64/Kconfig,1544,bool,NUMA Memory Allocation and Scheduler Support,,GENERIC_ARCH_NUMA ; OF_NUMA ; HAVE_SETUP_PER_CPU_AREA ; NEED_PER_CPU_EMBED_FIRST_CHUNK ; NEED_PER_CPU_PAGE_FIRST_CHUNK ; USE_PERCPU_NUMA_NODE_ID,,
+NODES_SHIFT,arch/arm64/Kconfig,1559,int,Maximum NUMA Nodes (as a power of 2),NUMA,,,"""4"""
+ARCH_SPARSEMEM_ENABLE,arch/arm64/Kconfig,1570,,,,SPARSEMEM_VMEMMAP_ENABLE,,
+HW_PERF_EVENTS,arch/arm64/Kconfig,1574,,,ARM_PMU,,,
+CC_HAVE_SHADOW_CALL_STACK,arch/arm64/Kconfig,1579,,,,,,
+PARAVIRT,arch/arm64/Kconfig,1582,bool,Enable paravirtualization code,,HAVE_PV_STEAL_CLOCK_GEN,,
+PARAVIRT_TIME_ACCOUNTING,arch/arm64/Kconfig,1590,bool,Paravirtual steal time accounting,,PARAVIRT,,
+ARCH_SUPPORTS_KEXEC,arch/arm64/Kconfig,1601,,,,,,
+ARCH_SUPPORTS_KEXEC_FILE,arch/arm64/Kconfig,1604,,,,,,
+ARCH_SELECTS_KEXEC_FILE,arch/arm64/Kconfig,1607,,,KEXEC_FILE,HAVE_IMA_KEXEC if IMA,,
+ARCH_SUPPORTS_KEXEC_SIG,arch/arm64/Kconfig,1612,,,,,,
+ARCH_SUPPORTS_KEXEC_IMAGE_VERIFY_SIG,arch/arm64/Kconfig,1615,,,,,,
+ARCH_DEFAULT_KEXEC_IMAGE_VERIFY_SIG,arch/arm64/Kconfig,1618,,,,,,
+ARCH_SUPPORTS_KEXEC_HANDOVER,arch/arm64/Kconfig,1621,,,,,,
+ARCH_SUPPORTS_CRASH_DUMP,arch/arm64/Kconfig,1624,,,,,,
+ARCH_DEFAULT_CRASH_DUMP,arch/arm64/Kconfig,1627,,,,,,
+ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION,arch/arm64/Kconfig,1630,,,,,,
+TRANS_TABLE,arch/arm64/Kconfig,1633,,,HIBERNATION || KEXEC_CORE,,,
+XEN_DOM0,arch/arm64/Kconfig,1637,,,XEN,,,
+XEN,arch/arm64/Kconfig,1641,bool,Xen guest support on ARM64,ARM64 && OF,SWIOTLB_XEN ; PARAVIRT,,
+ARCH_FORCE_MAX_ORDER,arch/arm64/Kconfig,1660,int,,,,,"""13"" if ARM64_64K_PAGES ; ""11"" if ARM64_16K_PAGES ; ""10"""
+UNMAP_KERNEL_AT_EL0,arch/arm64/Kconfig,1680,bool,Unmap kernel when running in userspace (KPTI),,,,y
+MITIGATE_SPECTRE_BRANCH_HISTORY,arch/arm64/Kconfig,1692,bool,Mitigate Spectre style attacks against branch history,,,,y
+ARM64_SW_TTBR0_PAN,arch/arm64/Kconfig,1701,bool,Emulate Privileged Access Never using TTBR0_EL1 switching,!KCSAN,,,
+ARM64_TAGGED_ADDR_ABI,arch/arm64/Kconfig,1710,bool,Enable the tagged user addresses syscall ABI,,,,y
+COMPAT,arch/arm64/Kconfig,1719,bool,Kernel support for 32-bit EL0,ARM64_4K_PAGES || EXPERT,HAVE_UID16 ; OLD_SIGSUSPEND3 ; COMPAT_OLD_SIGACTION,,
+KUSER_HELPERS,arch/arm64/Kconfig,1739,bool,Enable kuser helpers page for 32-bit applications,,,,y
+COMPAT_VDSO,arch/arm64/Kconfig,1766,bool,Enable vDSO for 32-bit applications,"!CPU_BIG_ENDIAN && (CC_IS_CLANG && LD_IS_LLD) || ""$(CROSS_COMPILE_COMPAT)"" != """"",,,y
+THUMB2_COMPAT_VDSO,arch/arm64/Kconfig,1779,bool,Compile the 32-bit vDSO for Thumb-2 mode,COMPAT_VDSO,,,y
+COMPAT_ALIGNMENT_FIXUPS,arch/arm64/Kconfig,1787,bool,Fix up misaligned multi-word loads and stores in user space,,,,
+ARMV8_DEPRECATED,arch/arm64/Kconfig,1790,bool,Emulate deprecated/obsolete ARMv8 instructions,SYSCTL,,,
+SWP_EMULATION,arch/arm64/Kconfig,1804,bool,Emulate SWP/SWPB instructions,,,,
+CP15_BARRIER_EMULATION,arch/arm64/Kconfig,1827,bool,Emulate CP15 Barrier instructions,,,,
+SETEND_EMULATION,arch/arm64/Kconfig,1843,bool,Emulate SETEND instruction,,,,
+ARM64_HW_AFDBM,arch/arm64/Kconfig,1865,bool,Support for hardware updates of the Access and Dirty page flags,,,,y
+ARM64_PMEM,arch/arm64/Kconfig,1886,bool,Enable support for persistent memory,,ARCH_HAS_PMEM_API ; ARCH_HAS_UACCESS_FLUSHCACHE,,
+ARM64_RAS_EXTN,arch/arm64/Kconfig,1898,bool,Enable support for RAS CPU Extensions,,,,y
+ARM64_CNP,arch/arm64/Kconfig,1914,bool,Enable support for Common Not Private (CNP) translations,,,,y
+ARM64_PTR_AUTH,arch/arm64/Kconfig,1931,bool,Enable support for pointer authentication,,,,y
+ARM64_PTR_AUTH_KERNEL,arch/arm64/Kconfig,1955,bool,Use pointer authentication for kernel,ARM64_PTR_AUTH && LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100) && !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE && (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_ARGS),,,y
+CC_HAS_BRANCH_PROT_PAC_RET,arch/arm64/Kconfig,1975,,,,,,
+AS_HAS_CFI_NEGATE_RA_STATE,arch/arm64/Kconfig,1979,,,,,,
+ARM64_AMU_EXTN,arch/arm64/Kconfig,1987,bool,Enable support for the Activity Monitors Unit CPU extension,,,,y
+ARM64_TLB_RANGE,arch/arm64/Kconfig,2010,bool,Enable support for tlbi range feature,,,,y
+ARM64_MPAM,arch/arm64/Kconfig,2017,bool,Enable support for MPAM,,ARM64_MPAM_DRIVER if EXPERT	# does nothing yet ; ACPI_MPAM if ACPI,,
+AS_HAS_ARMV8_5,arch/arm64/Kconfig,2046,,,,,,
+ARM64_BTI,arch/arm64/Kconfig,2049,bool,Branch Target Identification support,,,,y
+ARM64_BTI_KERNEL,arch/arm64/Kconfig,2071,bool,Use Branch Target Identification for kernel,ARM64_BTI && ARM64_PTR_AUTH_KERNEL && CC_HAS_BRANCH_PROT_PAC_RET_BTI && !CC_IS_GCC || GCC_VERSION >= 100100 && !CC_IS_GCC && (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_ARGS),,,y
+CC_HAS_BRANCH_PROT_PAC_RET_BTI,arch/arm64/Kconfig,2088,,,,,,
+ARM64_E0PD,arch/arm64/Kconfig,2092,bool,Enable support for E0PD,,,,y
+ARM64_AS_HAS_MTE,arch/arm64/Kconfig,2104,,,,,,
+ARM64_MTE,arch/arm64/Kconfig,2112,bool,Memory Tagging Extension support,ARM64_AS_HAS_MTE && ARM64_TAGGED_ADDR_ABI && AS_HAS_ARMV8_5,ARCH_HAS_SUBPAGE_FAULTS ; ARCH_USES_HIGH_VMA_FLAGS ; ARCH_USES_PG_ARCH_2 ; ARCH_USES_PG_ARCH_3,,y
+ARM64_EPAN,arch/arm64/Kconfig,2146,bool,Enable support for Enhanced Privileged Access Never (EPAN),,,,y
+AS_HAS_MOPS,arch/arm64/Kconfig,2157,,,,,,
+ARM64_POE,arch/arm64/Kconfig,2162,,,,ARCH_USES_HIGH_VMA_FLAGS ; ARCH_HAS_PKEYS,,
+ARCH_PKEY_BITS,arch/arm64/Kconfig,2177,int,,,,,3
+ARM64_HAFT,arch/arm64/Kconfig,2181,bool,Support for Hardware managed Access Flag for Table Descriptors,ARM64_HW_AFDBM,,,y
+ARM64_GCS,arch/arm64/Kconfig,2200,bool,Enable support for Guarded Control Stack (GCS),,ARCH_HAS_USER_SHADOW_STACK ; ARCH_USES_HIGH_VMA_FLAGS,,y
+ARM64_SVE,arch/arm64/Kconfig,2218,bool,ARM Scalable Vector Extension support,,,,y
+ARM64_SME,arch/arm64/Kconfig,2249,bool,ARM Scalable Matrix Extension support,ARM64_SVE,,,y
+ARM64_PSEUDO_NMI,arch/arm64/Kconfig,2260,bool,Support for NMI-like interrupts,,ARM_GIC_V3,,
+ARM64_DEBUG_PRIORITY_MASKING,arch/arm64/Kconfig,2275,bool,Debug interrupt priority masking,,,,
+RELOCATABLE,arch/arm64/Kconfig,2285,bool,Build a relocatable kernel image,,ARCH_HAS_RELR,,y
+RANDOMIZE_BASE,arch/arm64/Kconfig,2298,bool,Randomize the address of the kernel image,,RELOCATABLE,,
+RANDOMIZE_MODULE_REGION_FULL,arch/arm64/Kconfig,2316,bool,Randomize the module region over a 2 GB range,RANDOMIZE_BASE,,,y
+CC_HAVE_STACKPROTECTOR_SYSREG,arch/arm64/Kconfig,2333,,,,,,
+STACKPROTECTOR_PER_TASK,arch/arm64/Kconfig,2336,,,STACKPROTECTOR && CC_HAVE_STACKPROTECTOR_SYSREG,,,
+UNWIND_PATCH_PAC_INTO_SCS,arch/arm64/Kconfig,2340,bool,Enable shadow call stack dynamically using code patching,CC_IS_CLANG && ARM64_PTR_AUTH_KERNEL && CC_HAS_BRANCH_PROT_PAC_RET && SHADOW_CALL_STACK,UNWIND_TABLES ; DYNAMIC_SCS,,
+ARM64_CONTPTE,arch/arm64/Kconfig,2348,bool,Contiguous PTE mappings for user memory,TRANSPARENT_HUGEPAGE,,,y
+ARM64_ACPI_PARKING_PROTOCOL,arch/arm64/Kconfig,2361,bool,Enable support for the ARM64 ACPI parking protocol,ACPI,,,
+CMDLINE,arch/arm64/Kconfig,2370,string,Default kernel command string,"CMDLINE != """"",,,""""" ; CMDLINE_FROM_BOOTLOADER"
+CMDLINE_FROM_BOOTLOADER,arch/arm64/Kconfig,2386,bool,Use bootloader kernel arguments if available,,,,
+CMDLINE_FORCE,arch/arm64/Kconfig,2393,bool,Always use the default kernel command string,,,,
+EFI_STUB,arch/arm64/Kconfig,2403,bool,,,,,
+EFI,arch/arm64/Kconfig,2406,bool,UEFI runtime support,OF && !CPU_BIG_ENDIAN && KERNEL_MODE_NEON,ARCH_SUPPORTS_ACPI ; LIBFDT ; UCS2_STRING ; EFI_PARAMS_FROM_FDT ; EFI_RUNTIME_WRAPPERS ; EFI_STUB ; EFI_GENERIC_STUB,IMA_SECURE_AND_OR_TRUSTED_BOOT,y
+COMPRESSED_INSTALL,arch/arm64/Kconfig,2426,bool,Install compressed image by default,,,,
+DMI,arch/arm64/Kconfig,2437,bool,Enable support for SMBIOS (DMI) tables,EFI,,,y
+ARCH_HIBERNATION_POSSIBLE,arch/arm64/Kconfig,2454,,,CPU_PM,,,
+ARCH_HIBERNATION_HEADER,arch/arm64/Kconfig,2458,,,HIBERNATION,,,
+ARCH_SUSPEND_POSSIBLE,arch/arm64/Kconfig,2462,,,,,,
+PID_IN_CONTEXTIDR,arch/arm64/Kconfig.debug,3,bool,Write the current PID to the CONTEXTIDR register,,,,
+DEBUG_EFI,arch/arm64/Kconfig.debug,11,bool,UEFI debugging,EFI && DEBUG_INFO,,,
+ARM64_RELOC_TEST,arch/arm64/Kconfig.debug,19,tristate,Relocation testing module,m,,,
+ARCH_ACTIONS,arch/arm64/Kconfig.platforms,4,bool,Actions Semi Platforms,,OWL_TIMER ; PINCTRL,,
+ARCH_AIROHA,arch/arm64/Kconfig.platforms,11,bool,Airoha SoC Support,,ARM_PSCI ; HAVE_ARM_ARCH_TIMER,,
+ARCH_SUNXI,arch/arm64/Kconfig.platforms,18,bool,Allwinner sunxi 64-bit SoC Family,,ARCH_HAS_RESET_CONTROLLER ; PINCTRL ; RESET_CONTROLLER ; SUN4I_TIMER ; SUN6I_R_INTC ; SUNXI_NMI_INTC,,
+ARCH_ALPINE,arch/arm64/Kconfig.platforms,29,bool,Annapurna Labs Alpine platform,,ALPINE_MSI if PCI,,
+ARCH_APPLE,arch/arm64/Kconfig.platforms,36,bool,Apple Silicon SoC family,,APPLE_AIC ; APPLE_PMGR_PWRSTATE if PM,,
+ARCH_ARTPEC,arch/arm64/Kconfig.platforms,44,bool,Axis Communications ARTPEC SoC Family,ARCH_EXYNOS,ARM_GIC,,
+ARCH_AXIADO,arch/arm64/Kconfig.platforms,51,bool,Axiado SoC Family,,GPIOLIB,,
+ARCH_BCM,arch/arm64/Kconfig.platforms,57,bool,Broadcom SoC Support,,,,
+ARCH_BCM2835,arch/arm64/Kconfig.platforms,62,bool,Broadcom BCM2835 family,,TIMER_OF ; GPIOLIB ; MFD_CORE ; PINCTRL ; PINCTRL_BCM2835 ; ARM_AMBA ; ARM_GIC ; ARM_TIMER_SP804,,
+ARCH_BCM_IPROC,arch/arm64/Kconfig.platforms,76,bool,Broadcom iProc SoC Family,,COMMON_CLK_IPROC ; GPIOLIB ; PINCTRL,,
+ARCH_BCMBCA,arch/arm64/Kconfig.platforms,84,bool,Broadcom Broadband Carrier Access (BCA) origin SoC,,GPIOLIB,,
+ARCH_BRCMSTB,arch/arm64/Kconfig.platforms,94,bool,Broadcom Set-Top-Box SoCs,,ARCH_HAS_RESET_CONTROLLER ; GENERIC_IRQ_CHIP ; PINCTRL,,
+ARCH_BERLIN,arch/arm64/Kconfig.platforms,104,bool,Marvell Berlin SoC Family,,DW_APB_ICTL ; DW_APB_TIMER_OF ; GPIOLIB ; PINCTRL,,
+ARCH_BITMAIN,arch/arm64/Kconfig.platforms,113,bool,Bitmain SoC Platforms,,,,
+ARCH_BLAIZE,arch/arm64/Kconfig.platforms,118,bool,Blaize SoC Platforms,,,,
+ARCH_BST,arch/arm64/Kconfig.platforms,123,bool,Black Sesame Technologies SoC Family,,,,
+ARCH_CIX,arch/arm64/Kconfig.platforms,131,bool,Cixtech SoC family,,,,
+ARCH_EXYNOS,arch/arm64/Kconfig.platforms,137,bool,Samsung Exynos SoC family,,COMMON_CLK_SAMSUNG ; CLKSRC_EXYNOS_MCT ; EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS ; EXYNOS_PMU ; PINCTRL ; PINCTRL_EXYNOS ; PM_GENERIC_DOMAINS if PM ; SOC_SAMSUNG,,
+ARCH_K3,arch/arm64/Kconfig.platforms,150,bool,Texas Instruments Inc. K3 multicore SoC architecture,,SOC_TI ; TI_K3_SOCINFO,,
+ARCH_LG1K,arch/arm64/Kconfig.platforms,158,bool,LG Electronics LG1K SoC Family,,,,
+ARCH_HISI,arch/arm64/Kconfig.platforms,163,bool,Hisilicon SoC Family,,ARM_TIMER_SP804 ; HISILICON_IRQ_MBIGEN if PCI ; PINCTRL,,
+ARCH_KEEMBAY,arch/arm64/Kconfig.platforms,171,bool,Keem Bay SoC,,,,
+ARCH_MEDIATEK,arch/arm64/Kconfig.platforms,176,bool,MediaTek SoC Family,,ARM_GIC ; PINCTRL ; MTK_TIMER,,
+ARCH_MESON,arch/arm64/Kconfig.platforms,185,bool,Amlogic Platforms,,,,
+ARCH_MICROCHIP,arch/arm64/Kconfig.platforms,193,bool,,,,,
+ARCH_LAN969X,arch/arm64/Kconfig.platforms,196,bool,Microchip LAN969X SoC family,,PINCTRL ; DW_APB_TIMER_OF ; ARCH_MICROCHIP,,
+ARCH_SPARX5,arch/arm64/Kconfig.platforms,211,bool,Microchip Sparx5 SoC family,,PINCTRL ; DW_APB_TIMER_OF ; ARCH_MICROCHIP,,
+ARCH_MMP,arch/arm64/Kconfig.platforms,228,bool,Marvell MMP SoC Family,,PINCTRL ; PINCTRL_SINGLE,,
+ARCH_MVEBU,arch/arm64/Kconfig.platforms,236,bool,Marvell EBU SoC Family,,ARMADA_AP806_SYSCON ; ARMADA_CP110_SYSCON ; ARMADA_37XX_CLK ; GPIOLIB ; GPIOLIB_IRQCHIP ; MVEBU_GICP ; MVEBU_ICU ; MVEBU_ODMI ; MVEBU_PIC ; MVEBU_SEI ; OF_GPIO ; PINCTRL ; PINCTRL_ARMADA_37XX ; PINCTRL_ARMADA_AP806 ; PINCTRL_ARMADA_CP110 ; PINCTRL_AC5,,
+ARCH_NXP,arch/arm64/Kconfig.platforms,261,bool,NXP SoC support,,,,
+ARCH_LAYERSCAPE,arch/arm64/Kconfig.platforms,266,bool,Freescale Layerscape SoC family,,,,
+ARCH_MXC,arch/arm64/Kconfig.platforms,271,bool,NXP i.MX SoC family,,ARM64_ERRATUM_843419 ; ARM64_ERRATUM_845719 if COMPAT ; IMX_GPCV2 ; IMX_GPCV2_PM_DOMAINS ; PM ; PM_GENERIC_DOMAINS ; SOC_BUS ; TIMER_IMX_SYS_CTR,,
+ARCH_S32,arch/arm64/Kconfig.platforms,285,bool,NXP S32 SoC Family,,,,
+ARCH_MA35,arch/arm64/Kconfig.platforms,292,bool,Nuvoton MA35 Architecture,,GPIOLIB ; PINCTRL ; RESET_CONTROLLER,,
+ARCH_NPCM,arch/arm64/Kconfig.platforms,300,bool,Nuvoton NPCM Architecture,,PINCTRL ; GPIOLIB ; NPCM7XX_TIMER ; RESET_CONTROLLER ; MFD_SYSCON,,
+ARCH_PENSANDO,arch/arm64/Kconfig.platforms,311,bool,AMD Pensando Platforms,,,,
+ARCH_QCOM,arch/arm64/Kconfig.platforms,323,bool,Qualcomm Platforms,,GPIOLIB ; PINCTRL ; HAVE_PWRCTRL if PCI ; HAVE_SHARED_GPIOS,,
+ARCH_REALTEK,arch/arm64/Kconfig.platforms,332,bool,Realtek Platforms,,RESET_CONTROLLER,,
+ARCH_RENESAS,arch/arm64/Kconfig.platforms,339,bool,Renesas SoC Platforms,,,,
+ARCH_ROCKCHIP,arch/arm64/Kconfig.platforms,344,bool,Rockchip Platforms,,ARCH_HAS_RESET_CONTROLLER ; PINCTRL ; PM ; ROCKCHIP_TIMER,,
+ARCH_SEATTLE,arch/arm64/Kconfig.platforms,354,bool,AMD Seattle SoC Family,,,,
+ARCH_INTEL_SOCFPGA,arch/arm64/Kconfig.platforms,359,bool,Intel's SoCFPGA ARMv8 Families,,,,
+ARCH_SOPHGO,arch/arm64/Kconfig.platforms,366,bool,Sophgo SoCs,,ARCH_HAS_RESET_CONTROLLER,,
+ARCH_STM32,arch/arm64/Kconfig.platforms,372,bool,STMicroelectronics STM32 SoC Family,,GPIOLIB ; PINCTRL ; ARM_SCMI_PROTOCOL ; REGULATOR ; REGULATOR_ARM_SCMI ; COMMON_CLK_SCMI ; STM32_FIREWALL,,
+ARCH_SYNQUACER,arch/arm64/Kconfig.platforms,391,bool,Socionext SynQuacer SoC Family,,IRQ_FASTEOI_HIERARCHY_HANDLERS,,
+ARCH_TEGRA,arch/arm64/Kconfig.platforms,395,bool,NVIDIA Tegra SoC Family,,ARCH_HAS_RESET_CONTROLLER ; ARM_GIC_PM ; CLKSRC_MMIO ; TIMER_OF ; GPIOLIB ; PINCTRL ; PM ; PM_GENERIC_DOMAINS ; RESET_CONTROLLER,,
+ARCH_TESLA_FSD,arch/arm64/Kconfig.platforms,409,bool,Tesla platform,ARCH_EXYNOS,,,
+ARCH_SPRD,arch/arm64/Kconfig.platforms,415,bool,Spreadtrum SoC platform,,,,
+ARCH_THUNDER,arch/arm64/Kconfig.platforms,420,bool,Cavium Inc. Thunder SoC Family,,,,
+ARCH_THUNDER2,arch/arm64/Kconfig.platforms,425,bool,Cavium ThunderX2 Server Processors,,GPIOLIB,,
+ARCH_UNIPHIER,arch/arm64/Kconfig.platforms,432,bool,Socionext UniPhier SoC Family,,ARCH_HAS_RESET_CONTROLLER ; PINCTRL ; RESET_CONTROLLER,,
+ARCH_VEXPRESS,arch/arm64/Kconfig.platforms,440,bool,ARM Ltd Platforms,,GPIOLIB ; PM ; PM_GENERIC_DOMAINS,,
+ARCH_VISCONTI,arch/arm64/Kconfig.platforms,448,bool,Toshiba Visconti SoC Family,,PINCTRL ; PINCTRL_VISCONTI,,
+ARCH_XGENE,arch/arm64/Kconfig.platforms,455,bool,AppliedMicro X-Gene SOC Family,,,,
+ARCH_ZYNQMP,arch/arm64/Kconfig.platforms,460,bool,Xilinx ZynqMP Family,,,,
+CRYPTO_GHASH_ARM64_CE,arch/arm64/crypto/Kconfig,5,tristate,Hash functions: GHASH (ARMv8 Crypto Extensions),KERNEL_MODE_NEON,CRYPTO_HASH ; CRYPTO_LIB_AES ; CRYPTO_LIB_GF128MUL ; CRYPTO_AEAD,,
+CRYPTO_SM3_NEON,arch/arm64/crypto/Kconfig,18,tristate,Hash functions: SM3 (NEON),KERNEL_MODE_NEON,CRYPTO_HASH ; CRYPTO_LIB_SM3,,
+CRYPTO_SM3_ARM64_CE,arch/arm64/crypto/Kconfig,29,tristate,Hash functions: SM3 (ARMv8.2 Crypto Extensions),KERNEL_MODE_NEON,CRYPTO_HASH ; CRYPTO_LIB_SM3,,
+CRYPTO_AES_ARM64_CE_BLK,arch/arm64/crypto/Kconfig,40,tristate,"Ciphers: AES, modes: ECB/CBC/CTR/XTS (ARMv8 Crypto Extensions)",KERNEL_MODE_NEON,CRYPTO_SKCIPHER ; CRYPTO_LIB_AES ; CRYPTO_LIB_SHA256,,
+CRYPTO_AES_ARM64_NEON_BLK,arch/arm64/crypto/Kconfig,58,tristate,"Ciphers: AES, modes: ECB/CBC/CTR/XTS (NEON)",KERNEL_MODE_NEON,CRYPTO_SKCIPHER ; CRYPTO_LIB_AES ; CRYPTO_LIB_SHA256,,
+CRYPTO_AES_ARM64_BS,arch/arm64/crypto/Kconfig,76,tristate,"Ciphers: AES, modes: ECB/CBC/CTR/XCTR/XTS modes (bit-sliced NEON)",KERNEL_MODE_NEON,CRYPTO_SKCIPHER ; CRYPTO_AES_ARM64_NEON_BLK ; CRYPTO_LIB_AES,,
+CRYPTO_SM4_ARM64_CE,arch/arm64/crypto/Kconfig,96,tristate,Ciphers: SM4 (ARMv8.2 Crypto Extensions),KERNEL_MODE_NEON,CRYPTO_ALGAPI ; CRYPTO_SM4,,
+CRYPTO_SM4_ARM64_CE_BLK,arch/arm64/crypto/Kconfig,108,tristate,"Ciphers: SM4, modes: ECB/CBC/CTR/XTS (ARMv8 Crypto Extensions)",KERNEL_MODE_NEON,CRYPTO_SKCIPHER ; CRYPTO_SM4,,
+CRYPTO_SM4_ARM64_NEON_BLK,arch/arm64/crypto/Kconfig,126,tristate,"Ciphers: SM4, modes: ECB/CBC/CTR (NEON)",KERNEL_MODE_NEON,CRYPTO_SKCIPHER ; CRYPTO_SM4,,
+CRYPTO_AES_ARM64_CE_CCM,arch/arm64/crypto/Kconfig,141,tristate,AEAD cipher: AES in CCM mode (ARMv8 Crypto Extensions),KERNEL_MODE_NEON,CRYPTO_ALGAPI ; CRYPTO_AES_ARM64_CE_BLK ; CRYPTO_AEAD ; CRYPTO_LIB_AES,,
+CRYPTO_SM4_ARM64_CE_CCM,arch/arm64/crypto/Kconfig,157,tristate,AEAD cipher: SM4 in CCM mode (ARMv8 Crypto Extensions),KERNEL_MODE_NEON,CRYPTO_ALGAPI ; CRYPTO_AEAD ; CRYPTO_SM4 ; CRYPTO_SM4_ARM64_CE_BLK,,
+CRYPTO_SM4_ARM64_CE_GCM,arch/arm64/crypto/Kconfig,173,tristate,AEAD cipher: SM4 in GCM mode (ARMv8 Crypto Extensions),KERNEL_MODE_NEON,CRYPTO_ALGAPI ; CRYPTO_AEAD ; CRYPTO_SM4 ; CRYPTO_SM4_ARM64_CE_BLK,,
+VIRTUALIZATION,arch/arm64/kvm/Kconfig,8,bool,Virtualization,,,,
+KVM,arch/arm64/kvm/Kconfig,20,bool,Kernel-based Virtual Machine (KVM) support,,KVM_COMMON ; KVM_GENERIC_HARDWARE_ENABLING ; KVM_GENERIC_MMU_NOTIFIER ; HAVE_KVM_CPU_RELAX_INTERCEPT ; KVM_MMIO ; KVM_GENERIC_DIRTYLOG_READ_PROTECT ; VIRT_XFER_TO_GUEST_WORK ; KVM_VFIO ; HAVE_KVM_DIRTY_RING_ACQ_REL ; NEED_KVM_DIRTY_RING_WITH_BITMAP ; HAVE_KVM_MSI ; HAVE_KVM_IRQCHIP ; HAVE_KVM_IRQ_ROUTING ; HAVE_KVM_IRQ_BYPASS ; HAVE_KVM_READONLY_MEM ; HAVE_KVM_VCPU_RUN_PID_CHANGE ; SCHED_INFO ; GUEST_PERF_EVENTS if PERF_EVENTS ; KVM_GUEST_MEMFD,,
+NVHE_EL2_DEBUG,arch/arm64/kvm/Kconfig,46,bool,Debug mode for non-VHE EL2 object,KVM,,,
+PROTECTED_NVHE_STACKTRACE,arch/arm64/kvm/Kconfig,56,bool,Protected KVM hypervisor stacktraces,NVHE_EL2_DEBUG,,,n
+PTDUMP_STAGE2_DEBUGFS,arch/arm64/kvm/Kconfig,69,bool,Present the stage-2 pagetables to debugfs,KVM && DEBUG_KERNEL && DEBUG_FS && ARCH_HAS_PTDUMP,PTDUMP,,n
