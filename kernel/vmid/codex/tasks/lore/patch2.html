@@ -1,0 +1,950 @@
+<html><head><title>[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM - Shameer Kolothum</title><link
+rel=alternate
+title="Atom feed"
+href="../new.atom"
+type="application/atom+xml"/><style>pre{white-space:pre-wrap}*{font-size:100%;font-family:monospace}</style><link
+type=text/css
+rel=stylesheet
+href=../216light.css?6914e0a5
+media=screen,print /><link
+type=text/css
+rel=stylesheet
+href=../216dark.css?6914e0a5
+media="screen and (prefers-color-scheme:dark)" /></head><body><form
+action="../"><pre><a
+href="../?t=20211122121925"><b>All of lore.kernel.org</b></a>
+<input
+name=q
+type=text /><input
+type=submit
+value=search /> <a
+href="../_/text/help/">help</a> / <a
+href="../_/text/color/">color</a> / <a
+id=mirror
+href="../_/text/mirror/">mirror</a> / <a
+href="../new.atom">Atom feed</a></pre></form><pre
+id=b>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121925">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121925">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121925">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a>
+Date: Mon, 22 Nov 2021 12:18:41 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-2-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+A new VMID allocator for arm64 KVM use. This is based on
+arm64 ASID allocator algorithm.
+
+One major deviation from the ASID allocator is the way we
+flush the context. Unlike ASID allocator, we expect less
+frequent rollover in the case of VMIDs. Hence, instead of
+marking the CPU as flush_pending and issuing a local context
+invalidation on the next context switch, we &#160;broadcast TLB
+flush + I-cache invalidation over the inner shareable domain
+on rollover.
+
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a> |   4 +
+ <a
+id=iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+href=#Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>arch/arm64/kvm/vmid.c</a>             | 177 ++++++++++++++++++++++++++++++
+ 2 files <a href="#related">changed</a>, 181 insertions(+)
+ create mode 100644 arch/arm64/kvm/vmid.c
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 2a5f7f38006f..f4a86a79ea4a 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -690,6 +690,10 @@ int kvm_arm_pvtime_get_attr(struct kvm_vcpu *vcpu,
+</span> int kvm_arm_pvtime_has_attr(struct kvm_vcpu *vcpu,
+ 			    struct kvm_device_attr *attr);
+ 
+<span
+class="add">+int kvm_arm_vmid_alloc_init(void);
++void kvm_arm_vmid_alloc_free(void);
++void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
++
+</span> static inline void kvm_arm_pvtime_vcpu_init(struct kvm_vcpu_arch *vcpu_arch)
+ {
+ 	vcpu_arch-&gt;steal.base = GPA_INVALID;
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+id=Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>diff</a> --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+new file mode 100644
+index 000000000000..aa01c97f7df0
+--- /dev/null
++++ b/arch/arm64/kvm/vmid.c
+</span><span
+class="hunk">@@ -0,0 +1,177 @@
+</span><span
+class="add">+// SPDX-License-Identifier: GPL-2.0
++/*
++ * VMID allocator.
++ *
++ * Based on Arm64 ASID allocator algorithm.
++ * Please refer arch/arm64/mm/context.c for detailed
++ * comments on algorithm.
++ *
++ * Copyright (C) 2002-2003 Deep Blue Solutions Ltd, all rights reserved.
++ * Copyright (C) 2012 ARM Ltd.
++ */
++
++#include &lt;linux/bitfield.h&gt;
++#include &lt;linux/bitops.h&gt;
++
++#include &lt;asm/kvm_asm.h&gt;
++#include &lt;asm/kvm_mmu.h&gt;
++
++static unsigned int kvm_arm_vmid_bits;
++static DEFINE_RAW_SPINLOCK(cpu_vmid_lock);
++
++static atomic64_t vmid_generation;
++static unsigned long *vmid_map;
++
++static DEFINE_PER_CPU(atomic64_t, active_vmids);
++static DEFINE_PER_CPU(u64, reserved_vmids);
++
++#define VMID_MASK		(~GENMASK(kvm_arm_vmid_bits - 1, 0))
++#define VMID_FIRST_VERSION	(1UL &lt;&lt; kvm_arm_vmid_bits)
++
++#define NUM_USER_VMIDS		VMID_FIRST_VERSION
++#define vmid2idx(vmid)		((vmid) &#38; ~VMID_MASK)
++#define idx2vmid(idx)		vmid2idx(idx)
++
++#define vmid_gen_match(vmid) \
++	(!(((vmid) ^ atomic64_read(&#38;vmid_generation)) &gt;&gt; kvm_arm_vmid_bits))
++
++static void flush_context(void)
++{
++	int cpu;
++	u64 vmid;
++
++	bitmap_clear(vmid_map, 0, NUM_USER_VMIDS);
++
++	for_each_possible_cpu(cpu) {
++		vmid = atomic64_xchg_relaxed(&#38;per_cpu(active_vmids, cpu), 0);
++
++		/* Preserve reserved VMID */
++		if (vmid == 0)
++			vmid = per_cpu(reserved_vmids, cpu);
++		__set_bit(vmid2idx(vmid), vmid_map);
++		per_cpu(reserved_vmids, cpu) = vmid;
++	}
++
++	/*
++	 * Unlike ASID allocator, we expect less frequent rollover in
++	 * case of VMIDs. Hence, instead of marking the CPU as
++	 * flush_pending and issuing a local context invalidation on
++	 * the next context-switch, we broadcast TLB flush + I-cache
++	 * invalidation over the inner shareable domain on rollover.
++	 */
++	 kvm_call_hyp(__kvm_flush_vm_context);
++}
++
++static bool check_update_reserved_vmid(u64 vmid, u64 newvmid)
++{
++	int cpu;
++	bool hit = false;
++
++	/*
++	 * Iterate over the set of reserved VMIDs looking for a match
++	 * and update to use newvmid (i.e. the same VMID in the current
++	 * generation).
++	 */
++	for_each_possible_cpu(cpu) {
++		if (per_cpu(reserved_vmids, cpu) == vmid) {
++			hit = true;
++			per_cpu(reserved_vmids, cpu) = newvmid;
++		}
++	}
++
++	return hit;
++}
++
++static u64 new_vmid(struct kvm_vmid *kvm_vmid)
++{
++	static u32 cur_idx = 1;
++	u64 vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++	u64 generation = atomic64_read(&#38;vmid_generation);
++
++	if (vmid != 0) {
++		u64 newvmid = generation | (vmid &#38; ~VMID_MASK);
++
++		if (check_update_reserved_vmid(vmid, newvmid)) {
++			atomic64_set(&#38;kvm_vmid-&gt;id, newvmid);
++			return newvmid;
++		}
++
++		if (!__test_and_set_bit(vmid2idx(vmid), vmid_map)) {
++			atomic64_set(&#38;kvm_vmid-&gt;id, newvmid);
++			return newvmid;
++		}
++	}
++
++	vmid = find_next_zero_bit(vmid_map, NUM_USER_VMIDS, cur_idx);
++	if (vmid != NUM_USER_VMIDS)
++		goto set_vmid;
++
++	/* We&#39;re out of VMIDs, so increment the global generation count */
++	generation = atomic64_add_return_relaxed(VMID_FIRST_VERSION,
++						 &#38;vmid_generation);
++	flush_context();
++
++	/* We have more VMIDs than CPUs, so this will always succeed */
++	vmid = find_next_zero_bit(vmid_map, NUM_USER_VMIDS, 1);
++
++set_vmid:
++	__set_bit(vmid, vmid_map);
++	cur_idx = vmid;
++	vmid = idx2vmid(vmid) | generation;
++	atomic64_set(&#38;kvm_vmid-&gt;id, vmid);
++	return vmid;
++}
++
++void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
++{
++	unsigned long flags;
++	u64 vmid, old_active_vmid;
++
++	vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++
++	/*
++	 * Please refer comments in check_and_switch_context() in
++	 * arch/arm64/mm/context.c.
++	 */
++	old_active_vmid = atomic64_read(this_cpu_ptr(&#38;active_vmids));
++	if (old_active_vmid &#38;&#38; vmid_gen_match(vmid) &#38;&#38;
++	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&#38;active_vmids),
++				     old_active_vmid, vmid))
++		return;
++
++	raw_spin_lock_irqsave(&#38;cpu_vmid_lock, flags);
++
++	/* Check that our VMID belongs to the current generation. */
++	vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++	if (!vmid_gen_match(vmid))
++		vmid = new_vmid(kvm_vmid);
++
++	atomic64_set(this_cpu_ptr(&#38;active_vmids), vmid);
++	raw_spin_unlock_irqrestore(&#38;cpu_vmid_lock, flags);
++}
++
++/*
++ * Initialize the VMID allocator
++ */
++int kvm_arm_vmid_alloc_init(void)
++{
++	kvm_arm_vmid_bits = kvm_get_vmid_bits();
++
++	/*
++	 * Expect allocation after rollover to fail if we don&#39;t have
++	 * at least one more VMID than CPUs. VMID #0 is always reserved.
++	 */
++	WARN_ON(NUM_USER_VMIDS - 1 &lt;= num_possible_cpus());
++	atomic64_set(&#38;vmid_generation, VMID_FIRST_VERSION);
++	vmid_map = kcalloc(BITS_TO_LONGS(NUM_USER_VMIDS),
++			   sizeof(*vmid_map), GFP_KERNEL);
++	if (!vmid_map)
++		return -ENOMEM;
++
++	return 0;
++}
++
++void kvm_arm_vmid_alloc_free(void)
++{
++	kfree(vmid_map);
++}
+</span>-- 
+2.17.1
+
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122122927">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122122927">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122122927">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a>
+Date: Mon, 22 Nov 2021 12:18:41 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-2-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+A new VMID allocator for arm64 KVM use. This is based on
+arm64 ASID allocator algorithm.
+
+One major deviation from the ASID allocator is the way we
+flush the context. Unlike ASID allocator, we expect less
+frequent rollover in the case of VMIDs. Hence, instead of
+marking the CPU as flush_pending and issuing a local context
+invalidation on the next context switch, we &#160;broadcast TLB
+flush + I-cache invalidation over the inner shareable domain
+on rollover.
+
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a> |   4 +
+ <a
+id=iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+href=#Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>arch/arm64/kvm/vmid.c</a>             | 177 ++++++++++++++++++++++++++++++
+ 2 files <a href="#related">changed</a>, 181 insertions(+)
+ create mode 100644 arch/arm64/kvm/vmid.c
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 2a5f7f38006f..f4a86a79ea4a 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -690,6 +690,10 @@ int kvm_arm_pvtime_get_attr(struct kvm_vcpu *vcpu,
+</span> int kvm_arm_pvtime_has_attr(struct kvm_vcpu *vcpu,
+ 			    struct kvm_device_attr *attr);
+ 
+<span
+class="add">+int kvm_arm_vmid_alloc_init(void);
++void kvm_arm_vmid_alloc_free(void);
++void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
++
+</span> static inline void kvm_arm_pvtime_vcpu_init(struct kvm_vcpu_arch *vcpu_arch)
+ {
+ 	vcpu_arch-&gt;steal.base = GPA_INVALID;
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+id=Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>diff</a> --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+new file mode 100644
+index 000000000000..aa01c97f7df0
+--- /dev/null
++++ b/arch/arm64/kvm/vmid.c
+</span><span
+class="hunk">@@ -0,0 +1,177 @@
+</span><span
+class="add">+// SPDX-License-Identifier: GPL-2.0
++/*
++ * VMID allocator.
++ *
++ * Based on Arm64 ASID allocator algorithm.
++ * Please refer arch/arm64/mm/context.c for detailed
++ * comments on algorithm.
++ *
++ * Copyright (C) 2002-2003 Deep Blue Solutions Ltd, all rights reserved.
++ * Copyright (C) 2012 ARM Ltd.
++ */
++
++#include &lt;linux/bitfield.h&gt;
++#include &lt;linux/bitops.h&gt;
++
++#include &lt;asm/kvm_asm.h&gt;
++#include &lt;asm/kvm_mmu.h&gt;
++
++static unsigned int kvm_arm_vmid_bits;
++static DEFINE_RAW_SPINLOCK(cpu_vmid_lock);
++
++static atomic64_t vmid_generation;
++static unsigned long *vmid_map;
++
++static DEFINE_PER_CPU(atomic64_t, active_vmids);
++static DEFINE_PER_CPU(u64, reserved_vmids);
++
++#define VMID_MASK		(~GENMASK(kvm_arm_vmid_bits - 1, 0))
++#define VMID_FIRST_VERSION	(1UL &lt;&lt; kvm_arm_vmid_bits)
++
++#define NUM_USER_VMIDS		VMID_FIRST_VERSION
++#define vmid2idx(vmid)		((vmid) &#38; ~VMID_MASK)
++#define idx2vmid(idx)		vmid2idx(idx)
++
++#define vmid_gen_match(vmid) \
++	(!(((vmid) ^ atomic64_read(&#38;vmid_generation)) &gt;&gt; kvm_arm_vmid_bits))
++
++static void flush_context(void)
++{
++	int cpu;
++	u64 vmid;
++
++	bitmap_clear(vmid_map, 0, NUM_USER_VMIDS);
++
++	for_each_possible_cpu(cpu) {
++		vmid = atomic64_xchg_relaxed(&#38;per_cpu(active_vmids, cpu), 0);
++
++		/* Preserve reserved VMID */
++		if (vmid == 0)
++			vmid = per_cpu(reserved_vmids, cpu);
++		__set_bit(vmid2idx(vmid), vmid_map);
++		per_cpu(reserved_vmids, cpu) = vmid;
++	}
++
++	/*
++	 * Unlike ASID allocator, we expect less frequent rollover in
++	 * case of VMIDs. Hence, instead of marking the CPU as
++	 * flush_pending and issuing a local context invalidation on
++	 * the next context-switch, we broadcast TLB flush + I-cache
++	 * invalidation over the inner shareable domain on rollover.
++	 */
++	 kvm_call_hyp(__kvm_flush_vm_context);
++}
++
++static bool check_update_reserved_vmid(u64 vmid, u64 newvmid)
++{
++	int cpu;
++	bool hit = false;
++
++	/*
++	 * Iterate over the set of reserved VMIDs looking for a match
++	 * and update to use newvmid (i.e. the same VMID in the current
++	 * generation).
++	 */
++	for_each_possible_cpu(cpu) {
++		if (per_cpu(reserved_vmids, cpu) == vmid) {
++			hit = true;
++			per_cpu(reserved_vmids, cpu) = newvmid;
++		}
++	}
++
++	return hit;
++}
++
++static u64 new_vmid(struct kvm_vmid *kvm_vmid)
++{
++	static u32 cur_idx = 1;
++	u64 vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++	u64 generation = atomic64_read(&#38;vmid_generation);
++
++	if (vmid != 0) {
++		u64 newvmid = generation | (vmid &#38; ~VMID_MASK);
++
++		if (check_update_reserved_vmid(vmid, newvmid)) {
++			atomic64_set(&#38;kvm_vmid-&gt;id, newvmid);
++			return newvmid;
++		}
++
++		if (!__test_and_set_bit(vmid2idx(vmid), vmid_map)) {
++			atomic64_set(&#38;kvm_vmid-&gt;id, newvmid);
++			return newvmid;
++		}
++	}
++
++	vmid = find_next_zero_bit(vmid_map, NUM_USER_VMIDS, cur_idx);
++	if (vmid != NUM_USER_VMIDS)
++		goto set_vmid;
++
++	/* We&#39;re out of VMIDs, so increment the global generation count */
++	generation = atomic64_add_return_relaxed(VMID_FIRST_VERSION,
++						 &#38;vmid_generation);
++	flush_context();
++
++	/* We have more VMIDs than CPUs, so this will always succeed */
++	vmid = find_next_zero_bit(vmid_map, NUM_USER_VMIDS, 1);
++
++set_vmid:
++	__set_bit(vmid, vmid_map);
++	cur_idx = vmid;
++	vmid = idx2vmid(vmid) | generation;
++	atomic64_set(&#38;kvm_vmid-&gt;id, vmid);
++	return vmid;
++}
++
++void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
++{
++	unsigned long flags;
++	u64 vmid, old_active_vmid;
++
++	vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++
++	/*
++	 * Please refer comments in check_and_switch_context() in
++	 * arch/arm64/mm/context.c.
++	 */
++	old_active_vmid = atomic64_read(this_cpu_ptr(&#38;active_vmids));
++	if (old_active_vmid &#38;&#38; vmid_gen_match(vmid) &#38;&#38;
++	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&#38;active_vmids),
++				     old_active_vmid, vmid))
++		return;
++
++	raw_spin_lock_irqsave(&#38;cpu_vmid_lock, flags);
++
++	/* Check that our VMID belongs to the current generation. */
++	vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++	if (!vmid_gen_match(vmid))
++		vmid = new_vmid(kvm_vmid);
++
++	atomic64_set(this_cpu_ptr(&#38;active_vmids), vmid);
++	raw_spin_unlock_irqrestore(&#38;cpu_vmid_lock, flags);
++}
++
++/*
++ * Initialize the VMID allocator
++ */
++int kvm_arm_vmid_alloc_init(void)
++{
++	kvm_arm_vmid_bits = kvm_get_vmid_bits();
++
++	/*
++	 * Expect allocation after rollover to fail if we don&#39;t have
++	 * at least one more VMID than CPUs. VMID #0 is always reserved.
++	 */
++	WARN_ON(NUM_USER_VMIDS - 1 &lt;= num_possible_cpus());
++	atomic64_set(&#38;vmid_generation, VMID_FIRST_VERSION);
++	vmid_map = kcalloc(BITS_TO_LONGS(NUM_USER_VMIDS),
++			   sizeof(*vmid_map), GFP_KERNEL);
++	if (!vmid_map)
++		return -ENOMEM;
++
++	return 0;
++}
++
++void kvm_arm_vmid_alloc_free(void)
++{
++	kfree(vmid_map);
++}
+</span>-- 
+2.17.1
+
+
+_______________________________________________
+linux-arm-kernel mailing list
+linux-arm-kernel@lists.infradead.org
+<a
+href="http://lists.infradead.org/mailman/listinfo/linux-arm-kernel">http://lists.infradead.org/mailman/listinfo/linux-arm-kernel</a>
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121927">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121927">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121927">linux-kernel@vger.kernel.org</a>&gt;
+Cc: jean-philippe@linaro.org, maz@kernel.org, linuxarm@huawei.com,
+	jonathan.cameron@huawei.com, catalin.marinas@arm.com,
+	will@kernel.org
+Subject: <a
+href="#r"
+id=t>[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a>
+Date: Mon, 22 Nov 2021 12:18:41 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-2-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+A new VMID allocator for arm64 KVM use. This is based on
+arm64 ASID allocator algorithm.
+
+One major deviation from the ASID allocator is the way we
+flush the context. Unlike ASID allocator, we expect less
+frequent rollover in the case of VMIDs. Hence, instead of
+marking the CPU as flush_pending and issuing a local context
+invalidation on the next context switch, we &#160;broadcast TLB
+flush + I-cache invalidation over the inner shareable domain
+on rollover.
+
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a> |   4 +
+ <a
+id=iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+href=#Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>arch/arm64/kvm/vmid.c</a>             | 177 ++++++++++++++++++++++++++++++
+ 2 files <a href="#related">changed</a>, 181 insertions(+)
+ create mode 100644 arch/arm64/kvm/vmid.c
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 2a5f7f38006f..f4a86a79ea4a 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -690,6 +690,10 @@ int kvm_arm_pvtime_get_attr(struct kvm_vcpu *vcpu,
+</span> int kvm_arm_pvtime_has_attr(struct kvm_vcpu *vcpu,
+ 			    struct kvm_device_attr *attr);
+ 
+<span
+class="add">+int kvm_arm_vmid_alloc_init(void);
++void kvm_arm_vmid_alloc_free(void);
++void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
++
+</span> static inline void kvm_arm_pvtime_vcpu_init(struct kvm_vcpu_arch *vcpu_arch)
+ {
+ 	vcpu_arch-&gt;steal.base = GPA_INVALID;
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+id=Z2e.:20211122121844.867-2-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>diff</a> --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+new file mode 100644
+index 000000000000..aa01c97f7df0
+--- /dev/null
++++ b/arch/arm64/kvm/vmid.c
+</span><span
+class="hunk">@@ -0,0 +1,177 @@
+</span><span
+class="add">+// SPDX-License-Identifier: GPL-2.0
++/*
++ * VMID allocator.
++ *
++ * Based on Arm64 ASID allocator algorithm.
++ * Please refer arch/arm64/mm/context.c for detailed
++ * comments on algorithm.
++ *
++ * Copyright (C) 2002-2003 Deep Blue Solutions Ltd, all rights reserved.
++ * Copyright (C) 2012 ARM Ltd.
++ */
++
++#include &lt;linux/bitfield.h&gt;
++#include &lt;linux/bitops.h&gt;
++
++#include &lt;asm/kvm_asm.h&gt;
++#include &lt;asm/kvm_mmu.h&gt;
++
++static unsigned int kvm_arm_vmid_bits;
++static DEFINE_RAW_SPINLOCK(cpu_vmid_lock);
++
++static atomic64_t vmid_generation;
++static unsigned long *vmid_map;
++
++static DEFINE_PER_CPU(atomic64_t, active_vmids);
++static DEFINE_PER_CPU(u64, reserved_vmids);
++
++#define VMID_MASK		(~GENMASK(kvm_arm_vmid_bits - 1, 0))
++#define VMID_FIRST_VERSION	(1UL &lt;&lt; kvm_arm_vmid_bits)
++
++#define NUM_USER_VMIDS		VMID_FIRST_VERSION
++#define vmid2idx(vmid)		((vmid) &#38; ~VMID_MASK)
++#define idx2vmid(idx)		vmid2idx(idx)
++
++#define vmid_gen_match(vmid) \
++	(!(((vmid) ^ atomic64_read(&#38;vmid_generation)) &gt;&gt; kvm_arm_vmid_bits))
++
++static void flush_context(void)
++{
++	int cpu;
++	u64 vmid;
++
++	bitmap_clear(vmid_map, 0, NUM_USER_VMIDS);
++
++	for_each_possible_cpu(cpu) {
++		vmid = atomic64_xchg_relaxed(&#38;per_cpu(active_vmids, cpu), 0);
++
++		/* Preserve reserved VMID */
++		if (vmid == 0)
++			vmid = per_cpu(reserved_vmids, cpu);
++		__set_bit(vmid2idx(vmid), vmid_map);
++		per_cpu(reserved_vmids, cpu) = vmid;
++	}
++
++	/*
++	 * Unlike ASID allocator, we expect less frequent rollover in
++	 * case of VMIDs. Hence, instead of marking the CPU as
++	 * flush_pending and issuing a local context invalidation on
++	 * the next context-switch, we broadcast TLB flush + I-cache
++	 * invalidation over the inner shareable domain on rollover.
++	 */
++	 kvm_call_hyp(__kvm_flush_vm_context);
++}
++
++static bool check_update_reserved_vmid(u64 vmid, u64 newvmid)
++{
++	int cpu;
++	bool hit = false;
++
++	/*
++	 * Iterate over the set of reserved VMIDs looking for a match
++	 * and update to use newvmid (i.e. the same VMID in the current
++	 * generation).
++	 */
++	for_each_possible_cpu(cpu) {
++		if (per_cpu(reserved_vmids, cpu) == vmid) {
++			hit = true;
++			per_cpu(reserved_vmids, cpu) = newvmid;
++		}
++	}
++
++	return hit;
++}
++
++static u64 new_vmid(struct kvm_vmid *kvm_vmid)
++{
++	static u32 cur_idx = 1;
++	u64 vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++	u64 generation = atomic64_read(&#38;vmid_generation);
++
++	if (vmid != 0) {
++		u64 newvmid = generation | (vmid &#38; ~VMID_MASK);
++
++		if (check_update_reserved_vmid(vmid, newvmid)) {
++			atomic64_set(&#38;kvm_vmid-&gt;id, newvmid);
++			return newvmid;
++		}
++
++		if (!__test_and_set_bit(vmid2idx(vmid), vmid_map)) {
++			atomic64_set(&#38;kvm_vmid-&gt;id, newvmid);
++			return newvmid;
++		}
++	}
++
++	vmid = find_next_zero_bit(vmid_map, NUM_USER_VMIDS, cur_idx);
++	if (vmid != NUM_USER_VMIDS)
++		goto set_vmid;
++
++	/* We&#39;re out of VMIDs, so increment the global generation count */
++	generation = atomic64_add_return_relaxed(VMID_FIRST_VERSION,
++						 &#38;vmid_generation);
++	flush_context();
++
++	/* We have more VMIDs than CPUs, so this will always succeed */
++	vmid = find_next_zero_bit(vmid_map, NUM_USER_VMIDS, 1);
++
++set_vmid:
++	__set_bit(vmid, vmid_map);
++	cur_idx = vmid;
++	vmid = idx2vmid(vmid) | generation;
++	atomic64_set(&#38;kvm_vmid-&gt;id, vmid);
++	return vmid;
++}
++
++void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
++{
++	unsigned long flags;
++	u64 vmid, old_active_vmid;
++
++	vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++
++	/*
++	 * Please refer comments in check_and_switch_context() in
++	 * arch/arm64/mm/context.c.
++	 */
++	old_active_vmid = atomic64_read(this_cpu_ptr(&#38;active_vmids));
++	if (old_active_vmid &#38;&#38; vmid_gen_match(vmid) &#38;&#38;
++	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&#38;active_vmids),
++				     old_active_vmid, vmid))
++		return;
++
++	raw_spin_lock_irqsave(&#38;cpu_vmid_lock, flags);
++
++	/* Check that our VMID belongs to the current generation. */
++	vmid = atomic64_read(&#38;kvm_vmid-&gt;id);
++	if (!vmid_gen_match(vmid))
++		vmid = new_vmid(kvm_vmid);
++
++	atomic64_set(this_cpu_ptr(&#38;active_vmids), vmid);
++	raw_spin_unlock_irqrestore(&#38;cpu_vmid_lock, flags);
++}
++
++/*
++ * Initialize the VMID allocator
++ */
++int kvm_arm_vmid_alloc_init(void)
++{
++	kvm_arm_vmid_bits = kvm_get_vmid_bits();
++
++	/*
++	 * Expect allocation after rollover to fail if we don&#39;t have
++	 * at least one more VMID than CPUs. VMID #0 is always reserved.
++	 */
++	WARN_ON(NUM_USER_VMIDS - 1 &lt;= num_possible_cpus());
++	atomic64_set(&#38;vmid_generation, VMID_FIRST_VERSION);
++	vmid_map = kcalloc(BITS_TO_LONGS(NUM_USER_VMIDS),
++			   sizeof(*vmid_map), GFP_KERNEL);
++	if (!vmid_map)
++		return -ENOMEM;
++
++	return 0;
++}
++
++void kvm_arm_vmid_alloc_free(void)
++{
++	kfree(vmid_map);
++}
+</span>-- 
+2.17.1
+
+_______________________________________________
+kvmarm mailing list
+kvmarm@lists.cs.columbia.edu
+<a
+href="https://lists.cs.columbia.edu/mailman/listinfo/kvmarm">https://lists.cs.columbia.edu/mailman/listinfo/kvmarm</a>
+</pre><hr><pre><a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/"
+rel=next>next</a> <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/"
+rel=prev>prev parent</a> <a
+href="#R">reply</a>	other threads:[<a
+href="../?t=20211122121925">~2021-11-22 12:19 UTC</a>|<a
+href="../">newest</a>]
+
+<b>Thread overview: </b>39+ messages / expand[<a
+href="T/#u">flat</a>|<a
+href="t/#u">nested</a>]  <a
+href="t.mbox.gz">mbox.gz</a>  <a
+href="t.atom">Atom feed</a>  <a
+href="#b">top</a>
+2021-11-22 12:18 <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameer Kolothum
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+<b>2021-11-22 12:18 ` <a
+id=r
+href="#t">Shameer Kolothum [this message]</a></b>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-21  7:35   ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  8:44     ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 4/4] KVM: arm64: Make active_vmids invalid on vCPU schedule out</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-05 13:25 ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameerali Kolothum Thodi
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-18 12:32 ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-19  9:23   ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 11:49     ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 12:30       ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-02-08 17:37 ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+</pre><form id=related
+action=../
+><pre>find likely ancestor, descendant, or conflicting patches for <a
+href=#t>this message</a>:
+<textarea name=q cols=72 rows=5>( dfblob:2a5f7f38006 dfblob:f4a86a79ea4 dfblob:aa01c97f7df
+dfblob:2a5f7f38006 dfblob:f4a86a79ea4 dfblob:aa01c97f7df
+dfblob:2a5f7f38006 dfblob:f4a86a79ea4 dfblob:aa01c97f7df )
+ OR (
+bs:&#34;[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM&#34; )</textarea>
+<input type=submit value=search
+/>	(<a href=../_/text/help/#search>help</a>)</pre></form>
+<hr><pre
+id=R><b>Reply instructions:</b>
+
+You may reply publicly to <a
+href=#t>this message</a> via plain-text email
+using any one of the following methods:
+
+* Save the following mbox file, import it into your mail client,
+  and reply-to-all from there: <a
+href=raw>mbox</a>
+
+  Avoid top-posting and favor interleaved quoting:
+  <a
+href="https://en.wikipedia.org/wiki/Posting_style#Interleaved_style">https://en.wikipedia.org/wiki/Posting_style#Interleaved_style</a>
+
+* Reply using the <b>--to</b>, <b>--cc</b>, and <b>--in-reply-to</b>
+  switches of git-send-email(1):
+
+  git send-email \
+    --in-reply-to=20211122121844.867-2-shameerali.kolothum.thodi@huawei.com \
+    --to=shameerali.kolothum.thodi@huawei.com \
+    --cc=Alexandru.Elisei@arm.com \
+    --cc=catalin.marinas@arm.com \
+    --cc=james.morse@arm.com \
+    --cc=jean-philippe@linaro.org \
+    --cc=jonathan.cameron@huawei.com \
+    --cc=julien.thierry.kdev@gmail.com \
+    --cc=kvmarm@lists.cs.columbia.edu \
+    --cc=linux-arm-kernel@lists.infradead.org \
+    --cc=linux-kernel@vger.kernel.org \
+    --cc=linuxarm@huawei.com \
+    --cc=maz@kernel.org \
+    --cc=qperret@google.com \
+    --cc=suzuki.poulose@arm.com \
+    --cc=will@kernel.org \
+    /path/to/YOUR_REPLY
+
+  <a
+href="https://kernel.org/pub/software/scm/git/docs/git-send-email.html">https://kernel.org/pub/software/scm/git/docs/git-send-email.html</a>
+
+* If your mail client supports setting the <b>In-Reply-To</b> header
+  via mailto: links, try the <a
+href="mailto:shameerali.kolothum.thodi@huawei.com?In-Reply-To=%3C20211122121844.867-2-shameerali.kolothum.thodi@huawei.com%3E&#38;Cc=Alexandru.Elisei%40arm.com%2Ccatalin.marinas%40arm.com%2Cjames.morse%40arm.com%2Cjean-philippe%40linaro.org%2Cjonathan.cameron%40huawei.com%2Cjulien.thierry.kdev%40gmail.com%2Ckvmarm%40lists.cs.columbia.edu%2Clinux-arm-kernel%40lists.infradead.org%2Clinux-kernel%40vger.kernel.org%2Clinuxarm%40huawei.com%2Cmaz%40kernel.org%2Cqperret%40google.com%2Csuzuki.poulose%40arm.com%2Cwill%40kernel.org&#38;Subject=Re%3A%20%5BPATCH%20v4%201%2F4%5D%20KVM%3A%20arm64%3A%20Introduce%20a%20new%20VMID%20allocator%20for%20KVM">mailto: link</a>
+</pre>
+
+  Be sure your reply has a <b>Subject:</b> header at the top and a blank line
+  before the message body.
+<hr><pre>This is an external index of several public inboxes,
+see <a href="../_/text/mirror/">mirroring instructions</a> on how to clone and mirror
+all data and code used by this external index.</pre></body></html>

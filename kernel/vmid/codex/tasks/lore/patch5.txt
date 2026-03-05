@@ -1,0 +1,158 @@
+From: Shameer Kolothum <shameerali.kolothum.thodi@huawei.com>
+To: <
+linux-arm-kernel@lists.infradead.org
+>,
+	<
+kvmarm@lists.cs.columbia.edu
+>, <
+linux-kernel@vger.kernel.org
+>
+Cc: <maz@kernel.org>, <will@kernel.org>, <catalin.marinas@arm.com>,
+	<james.morse@arm.com>, <julien.thierry.kdev@gmail.com>,
+	<suzuki.poulose@arm.com>, <jean-philippe@linaro.org>,
+	<Alexandru.Elisei@arm.com>, <qperret@google.com>,
+	<jonathan.cameron@huawei.com>, <linuxarm@huawei.com>
+Subject: 
+[PATCH v4 4/4] KVM: arm64: Make active_vmids invalid on vCPU schedule out
+
+Date: Mon, 22 Nov 2021 12:18:44 +0000	
+[thread overview]
+
+Message-ID: <20211122121844.867-5-shameerali.kolothum.thodi@huawei.com> (
+raw
+)
+In-Reply-To: <
+20211122121844.867-1-shameerali.kolothum.thodi@huawei.com
+>
+
+Like ASID allocator, we copy the active_vmids into the
+reserved_vmids on a rollover. But it's unlikely that
+every CPU will have a vCPU as current task and we may
+end up unnecessarily reserving the VMID space.
+
+Hence, set active_vmids to an invalid one when scheduling
+out a vCPU.
+
+Signed-off-by: Shameer Kolothum <shameerali.kolothum.thodi@huawei.com>
+---
+ 
+arch/arm64/include/asm/kvm_host.h
+ |  1 +
+ 
+arch/arm64/kvm/arm.c
+              |  1 +
+ 
+arch/arm64/kvm/vmid.c
+             | 25 ++++++++++++++++++++++---
+ 3 files 
+changed
+, 24 insertions(+), 3 deletions(-)
+
+
+diff
+ --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 752d4408e3d0..22f952effd03 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+
+@@ -692,6 +692,7 @@ extern unsigned int kvm_arm_vmid_bits;
+
+ int kvm_arm_vmid_alloc_init(void);
+ void kvm_arm_vmid_alloc_free(void);
+ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
+
++void kvm_arm_vmid_clear_active(void);
+
+ 
+ static inline void kvm_arm_pvtime_vcpu_init(struct kvm_vcpu_arch *vcpu_arch)
+ {
+
+diff
+ --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index 0544011b0fc6..bfe926805240 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+
+@@ -431,6 +431,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
+
+ 	kvm_timer_vcpu_put(vcpu);
+ 	kvm_vgic_put(vcpu);
+ 	kvm_vcpu_pmu_restore_host(vcpu);
+
++	kvm_arm_vmid_clear_active();
+
+ 
+ 	vcpu->cpu = -1;
+ }
+
+diff
+ --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+index 9aff692b6b7d..966ebb2d12e5 100644
+--- a/arch/arm64/kvm/vmid.c
++++ b/arch/arm64/kvm/vmid.c
+
+@@ -32,6 +32,13 @@ static DEFINE_PER_CPU(u64, reserved_vmids);
+
+ #define vmid2idx(vmid)		((vmid) & ~VMID_MASK)
+ #define idx2vmid(idx)		vmid2idx(idx)
+ 
+
++/*
++ * As vmid #0 is always reserved, we will never allocate one
++ * as below and can be treated as invalid. This is used to
++ * set the active_vmids on vCPU schedule out.
++ */
++#define VMID_ACTIVE_INVALID		VMID_FIRST_VERSION
++
+
+ #define vmid_gen_match(vmid) \
+ 	(!(((vmid) ^ atomic64_read(&vmid_generation)) >> kvm_arm_vmid_bits))
+ 
+
+@@ -122,6 +129,12 @@ static u64 new_vmid(struct kvm_vmid *kvm_vmid)
+
+ 	return vmid;
+ }
+ 
+
++/* Called from vCPU sched out with preemption disabled */
++void kvm_arm_vmid_clear_active(void)
++{
++	atomic64_set(this_cpu_ptr(&active_vmids), VMID_ACTIVE_INVALID);
++}
++
+
+ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
+ {
+ 	unsigned long flags;
+
+@@ -132,11 +145,17 @@ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
+
+ 	/*
+ 	 * Please refer comments in check_and_switch_context() in
+ 	 * arch/arm64/mm/context.c.
+
++	 *
++	 * Unlike ASID allocator, we set the active_vmids to
++	 * VMID_ACTIVE_INVALID on vCPU schedule out to avoid
++	 * reserving the VMID space needlessly on rollover.
++	 * Hence explicitly check here for a "!= 0" to
++	 * handle the sync with a concurrent rollover.
+
+ 	 */
+ 	old_active_vmid = atomic64_read(this_cpu_ptr(&active_vmids));
+
+-	if (old_active_vmid && vmid_gen_match(vmid) &&
+-	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&active_vmids),
+-				     old_active_vmid, vmid))
+
++	if (old_active_vmid != 0 && vmid_gen_match(vmid) &&
++	    0 != atomic64_cmpxchg_relaxed(this_cpu_ptr(&active_vmids),
++					  old_active_vmid, vmid))
+
+ 		return;
+ 
+ 	raw_spin_lock_irqsave(&cpu_vmid_lock, flags);
+-- 
+2.17.1
+

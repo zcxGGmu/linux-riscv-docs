@@ -1,0 +1,483 @@
+<html><head><title>[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator - Shameer Kolothum</title><link
+rel=alternate
+title="Atom feed"
+href="../new.atom"
+type="application/atom+xml"/><style>pre{white-space:pre-wrap}*{font-size:100%;font-family:monospace}</style><link
+type=text/css
+rel=stylesheet
+href=../216light.css?6914e0a5
+media=screen,print /><link
+type=text/css
+rel=stylesheet
+href=../216dark.css?6914e0a5
+media="screen and (prefers-color-scheme:dark)" /></head><body><form
+action="../"><pre><a
+href="../?t=20211122121933"><b>All of lore.kernel.org</b></a>
+<input
+name=q
+type=text /><input
+type=submit
+value=search /> <a
+href="../_/text/help/">help</a> / <a
+href="../_/text/color/">color</a> / <a
+id=mirror
+href="../_/text/mirror/">mirror</a> / <a
+href="../new.atom">Atom feed</a></pre></form><pre
+id=b>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121933">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121933">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121933">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a>
+Date: Mon, 22 Nov 2021 12:18:42 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-3-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+Since we already set the kvm_arm_vmid_bits in the VMID allocator
+init function, make it accessible outside as well so that it can
+be used in the subsequent patch.
+
+Suggested-by: Will Deacon &lt;will@kernel.org&gt;
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a> | 1 +
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h>arch/arm64/kernel/image-vars.h</a>    | 3 +++
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>arch/arm64/kvm/vmid.c</a>             | 2 +-
+ 3 files <a href="#related">changed</a>, 5 insertions(+), 1 deletion(-)
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index f4a86a79ea4a..51af17e16115 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -690,6 +690,7 @@ int kvm_arm_pvtime_get_attr(struct kvm_vcpu *vcpu,
+</span> int kvm_arm_pvtime_has_attr(struct kvm_vcpu *vcpu,
+ 			    struct kvm_device_attr *attr);
+ 
+<span
+class="add">+extern unsigned int kvm_arm_vmid_bits;
+</span> int kvm_arm_vmid_alloc_init(void);
+ void kvm_arm_vmid_alloc_free(void);
+ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h>diff</a> --git a/arch/arm64/kernel/image-vars.h b/arch/arm64/kernel/image-vars.h
+index c96a9a0043bf..c12963c3a055 100644
+--- a/arch/arm64/kernel/image-vars.h
++++ b/arch/arm64/kernel/image-vars.h
+</span><span
+class="hunk">@@ -79,6 +79,9 @@ KVM_NVHE_ALIAS(__hyp_stub_vectors);
+</span> /* Kernel symbol used by icache_is_vpipt(). */
+ KVM_NVHE_ALIAS(__icache_flags);
+ 
+<span
+class="add">+/* VMID bits set by the KVM VMID allocator */
++KVM_NVHE_ALIAS(kvm_arm_vmid_bits);
++
+</span> /* Kernel symbols needed for cpus_have_final/const_caps checks. */
+ KVM_NVHE_ALIAS(arm64_const_caps_ready);
+ KVM_NVHE_ALIAS(cpu_hwcap_keys);
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>diff</a> --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+index aa01c97f7df0..9aff692b6b7d 100644
+--- a/arch/arm64/kvm/vmid.c
++++ b/arch/arm64/kvm/vmid.c
+</span><span
+class="hunk">@@ -16,7 +16,7 @@
+</span> #include &lt;asm/kvm_asm.h&gt;
+ #include &lt;asm/kvm_mmu.h&gt;
+ 
+<span
+class="del">-static unsigned int kvm_arm_vmid_bits;
+</span><span
+class="add">+unsigned int kvm_arm_vmid_bits;
+</span> static DEFINE_RAW_SPINLOCK(cpu_vmid_lock);
+ 
+ static atomic64_t vmid_generation;
+-- 
+2.17.1
+
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122123038">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122123038">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122123038">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a>
+Date: Mon, 22 Nov 2021 12:18:42 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-3-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+Since we already set the kvm_arm_vmid_bits in the VMID allocator
+init function, make it accessible outside as well so that it can
+be used in the subsequent patch.
+
+Suggested-by: Will Deacon &lt;will@kernel.org&gt;
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a> | 1 +
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h>arch/arm64/kernel/image-vars.h</a>    | 3 +++
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>arch/arm64/kvm/vmid.c</a>             | 2 +-
+ 3 files <a href="#related">changed</a>, 5 insertions(+), 1 deletion(-)
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index f4a86a79ea4a..51af17e16115 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -690,6 +690,7 @@ int kvm_arm_pvtime_get_attr(struct kvm_vcpu *vcpu,
+</span> int kvm_arm_pvtime_has_attr(struct kvm_vcpu *vcpu,
+ 			    struct kvm_device_attr *attr);
+ 
+<span
+class="add">+extern unsigned int kvm_arm_vmid_bits;
+</span> int kvm_arm_vmid_alloc_init(void);
+ void kvm_arm_vmid_alloc_free(void);
+ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h>diff</a> --git a/arch/arm64/kernel/image-vars.h b/arch/arm64/kernel/image-vars.h
+index c96a9a0043bf..c12963c3a055 100644
+--- a/arch/arm64/kernel/image-vars.h
++++ b/arch/arm64/kernel/image-vars.h
+</span><span
+class="hunk">@@ -79,6 +79,9 @@ KVM_NVHE_ALIAS(__hyp_stub_vectors);
+</span> /* Kernel symbol used by icache_is_vpipt(). */
+ KVM_NVHE_ALIAS(__icache_flags);
+ 
+<span
+class="add">+/* VMID bits set by the KVM VMID allocator */
++KVM_NVHE_ALIAS(kvm_arm_vmid_bits);
++
+</span> /* Kernel symbols needed for cpus_have_final/const_caps checks. */
+ KVM_NVHE_ALIAS(arm64_const_caps_ready);
+ KVM_NVHE_ALIAS(cpu_hwcap_keys);
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>diff</a> --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+index aa01c97f7df0..9aff692b6b7d 100644
+--- a/arch/arm64/kvm/vmid.c
++++ b/arch/arm64/kvm/vmid.c
+</span><span
+class="hunk">@@ -16,7 +16,7 @@
+</span> #include &lt;asm/kvm_asm.h&gt;
+ #include &lt;asm/kvm_mmu.h&gt;
+ 
+<span
+class="del">-static unsigned int kvm_arm_vmid_bits;
+</span><span
+class="add">+unsigned int kvm_arm_vmid_bits;
+</span> static DEFINE_RAW_SPINLOCK(cpu_vmid_lock);
+ 
+ static atomic64_t vmid_generation;
+-- 
+2.17.1
+
+
+_______________________________________________
+linux-arm-kernel mailing list
+linux-arm-kernel@lists.infradead.org
+<a
+href="http://lists.infradead.org/mailman/listinfo/linux-arm-kernel">http://lists.infradead.org/mailman/listinfo/linux-arm-kernel</a>
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121934">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121934">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121934">linux-kernel@vger.kernel.org</a>&gt;
+Cc: jean-philippe@linaro.org, maz@kernel.org, linuxarm@huawei.com,
+	jonathan.cameron@huawei.com, catalin.marinas@arm.com,
+	will@kernel.org
+Subject: <a
+href="#r"
+id=t>[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a>
+Date: Mon, 22 Nov 2021 12:18:42 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-3-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+Since we already set the kvm_arm_vmid_bits in the VMID allocator
+init function, make it accessible outside as well so that it can
+be used in the subsequent patch.
+
+Suggested-by: Will Deacon &lt;will@kernel.org&gt;
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a> | 1 +
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h>arch/arm64/kernel/image-vars.h</a>    | 3 +++
+ <a
+id=iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+href=#Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>arch/arm64/kvm/vmid.c</a>             | 2 +-
+ 3 files <a href="#related">changed</a>, 5 insertions(+), 1 deletion(-)
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index f4a86a79ea4a..51af17e16115 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -690,6 +690,7 @@ int kvm_arm_pvtime_get_attr(struct kvm_vcpu *vcpu,
+</span> int kvm_arm_pvtime_has_attr(struct kvm_vcpu *vcpu,
+ 			    struct kvm_device_attr *attr);
+ 
+<span
+class="add">+extern unsigned int kvm_arm_vmid_bits;
+</span> int kvm_arm_vmid_alloc_init(void);
+ void kvm_arm_vmid_alloc_free(void);
+ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid);
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kernel:image-vars.h>diff</a> --git a/arch/arm64/kernel/image-vars.h b/arch/arm64/kernel/image-vars.h
+index c96a9a0043bf..c12963c3a055 100644
+--- a/arch/arm64/kernel/image-vars.h
++++ b/arch/arm64/kernel/image-vars.h
+</span><span
+class="hunk">@@ -79,6 +79,9 @@ KVM_NVHE_ALIAS(__hyp_stub_vectors);
+</span> /* Kernel symbol used by icache_is_vpipt(). */
+ KVM_NVHE_ALIAS(__icache_flags);
+ 
+<span
+class="add">+/* VMID bits set by the KVM VMID allocator */
++KVM_NVHE_ALIAS(kvm_arm_vmid_bits);
++
+</span> /* Kernel symbols needed for cpus_have_final/const_caps checks. */
+ KVM_NVHE_ALIAS(arm64_const_caps_ready);
+ KVM_NVHE_ALIAS(cpu_hwcap_keys);
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c
+id=Z2e.:20211122121844.867-3-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:vmid.c>diff</a> --git a/arch/arm64/kvm/vmid.c b/arch/arm64/kvm/vmid.c
+index aa01c97f7df0..9aff692b6b7d 100644
+--- a/arch/arm64/kvm/vmid.c
++++ b/arch/arm64/kvm/vmid.c
+</span><span
+class="hunk">@@ -16,7 +16,7 @@
+</span> #include &lt;asm/kvm_asm.h&gt;
+ #include &lt;asm/kvm_mmu.h&gt;
+ 
+<span
+class="del">-static unsigned int kvm_arm_vmid_bits;
+</span><span
+class="add">+unsigned int kvm_arm_vmid_bits;
+</span> static DEFINE_RAW_SPINLOCK(cpu_vmid_lock);
+ 
+ static atomic64_t vmid_generation;
+-- 
+2.17.1
+
+_______________________________________________
+kvmarm mailing list
+kvmarm@lists.cs.columbia.edu
+<a
+href="https://lists.cs.columbia.edu/mailman/listinfo/kvmarm">https://lists.cs.columbia.edu/mailman/listinfo/kvmarm</a>
+</pre><hr><pre><a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/"
+rel=next>next</a> <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/"
+rel=prev>prev</a> <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">parent</a> <a
+href="#R">reply</a>	other threads:[<a
+href="../?t=20211122121933">~2021-11-22 12:19 UTC</a>|<a
+href="../">newest</a>]
+
+<b>Thread overview: </b>39+ messages / expand[<a
+href="T/#u">flat</a>|<a
+href="t/#u">nested</a>]  <a
+href="t.mbox.gz">mbox.gz</a>  <a
+href="t.atom">Atom feed</a>  <a
+href="#b">top</a>
+2021-11-22 12:18 <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameer Kolothum
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-21  7:35   ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  8:44     ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+<b>2021-11-22 12:18 ` <a
+id=r
+href="#t">Shameer Kolothum [this message]</a></b>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 4/4] KVM: arm64: Make active_vmids invalid on vCPU schedule out</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-05 13:25 ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameerali Kolothum Thodi
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-18 12:32 ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-19  9:23   ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 11:49     ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 12:30       ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-02-08 17:37 ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+</pre><form id=related
+action=../
+><pre>find likely ancestor, descendant, or conflicting patches for <a
+href=#t>this message</a>:
+<textarea name=q cols=72 rows=8>( dfblob:f4a86a79ea4 dfblob:51af17e1611 dfblob:c96a9a0043b
+dfblob:c12963c3a05 dfblob:aa01c97f7df dfblob:9aff692b6b7
+dfblob:f4a86a79ea4 dfblob:51af17e1611 dfblob:c96a9a0043b
+dfblob:c12963c3a05 dfblob:aa01c97f7df dfblob:9aff692b6b7
+dfblob:f4a86a79ea4 dfblob:51af17e1611 dfblob:c96a9a0043b
+dfblob:c12963c3a05 dfblob:aa01c97f7df dfblob:9aff692b6b7 )
+ OR (
+bs:&#34;[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator&#34; )</textarea>
+<input type=submit value=search
+/>	(<a href=../_/text/help/#search>help</a>)</pre></form>
+<hr><pre
+id=R><b>Reply instructions:</b>
+
+You may reply publicly to <a
+href=#t>this message</a> via plain-text email
+using any one of the following methods:
+
+* Save the following mbox file, import it into your mail client,
+  and reply-to-all from there: <a
+href=raw>mbox</a>
+
+  Avoid top-posting and favor interleaved quoting:
+  <a
+href="https://en.wikipedia.org/wiki/Posting_style#Interleaved_style">https://en.wikipedia.org/wiki/Posting_style#Interleaved_style</a>
+
+* Reply using the <b>--to</b>, <b>--cc</b>, and <b>--in-reply-to</b>
+  switches of git-send-email(1):
+
+  git send-email \
+    --in-reply-to=20211122121844.867-3-shameerali.kolothum.thodi@huawei.com \
+    --to=shameerali.kolothum.thodi@huawei.com \
+    --cc=Alexandru.Elisei@arm.com \
+    --cc=catalin.marinas@arm.com \
+    --cc=james.morse@arm.com \
+    --cc=jean-philippe@linaro.org \
+    --cc=jonathan.cameron@huawei.com \
+    --cc=julien.thierry.kdev@gmail.com \
+    --cc=kvmarm@lists.cs.columbia.edu \
+    --cc=linux-arm-kernel@lists.infradead.org \
+    --cc=linux-kernel@vger.kernel.org \
+    --cc=linuxarm@huawei.com \
+    --cc=maz@kernel.org \
+    --cc=qperret@google.com \
+    --cc=suzuki.poulose@arm.com \
+    --cc=will@kernel.org \
+    /path/to/YOUR_REPLY
+
+  <a
+href="https://kernel.org/pub/software/scm/git/docs/git-send-email.html">https://kernel.org/pub/software/scm/git/docs/git-send-email.html</a>
+
+* If your mail client supports setting the <b>In-Reply-To</b> header
+  via mailto: links, try the <a
+href="mailto:shameerali.kolothum.thodi@huawei.com?In-Reply-To=%3C20211122121844.867-3-shameerali.kolothum.thodi@huawei.com%3E&#38;Cc=Alexandru.Elisei%40arm.com%2Ccatalin.marinas%40arm.com%2Cjames.morse%40arm.com%2Cjean-philippe%40linaro.org%2Cjonathan.cameron%40huawei.com%2Cjulien.thierry.kdev%40gmail.com%2Ckvmarm%40lists.cs.columbia.edu%2Clinux-arm-kernel%40lists.infradead.org%2Clinux-kernel%40vger.kernel.org%2Clinuxarm%40huawei.com%2Cmaz%40kernel.org%2Cqperret%40google.com%2Csuzuki.poulose%40arm.com%2Cwill%40kernel.org&#38;Subject=Re%3A%20%5BPATCH%20v4%202%2F4%5D%20KVM%3A%20arm64%3A%20Make%20VMID%20bits%20accessible%20outside%20of%20allocator">mailto: link</a>
+</pre>
+
+  Be sure your reply has a <b>Subject:</b> header at the top and a blank line
+  before the message body.
+<hr><pre>This is an external index of several public inboxes,
+see <a href="../_/text/mirror/">mirroring instructions</a> on how to clone and mirror
+all data and code used by this external index.</pre></body></html>

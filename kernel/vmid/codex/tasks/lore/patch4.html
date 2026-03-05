@@ -1,0 +1,1242 @@
+<html><head><title>[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID - Shameer Kolothum</title><link
+rel=alternate
+title="Atom feed"
+href="../new.atom"
+type="application/atom+xml"/><style>pre{white-space:pre-wrap}*{font-size:100%;font-family:monospace}</style><link
+type=text/css
+rel=stylesheet
+href=../216light.css?6914e0a5
+media=screen,print /><link
+type=text/css
+rel=stylesheet
+href=../216dark.css?6914e0a5
+media="screen and (prefers-color-scheme:dark)" /></head><body><form
+action="../"><pre><a
+href="../?t=20211122121941"><b>All of lore.kernel.org</b></a>
+<input
+name=q
+type=text /><input
+type=submit
+value=search /> <a
+href="../_/text/help/">help</a> / <a
+href="../_/text/color/">color</a> / <a
+id=mirror
+href="../_/text/mirror/">mirror</a> / <a
+href="../new.atom">Atom feed</a></pre></form><pre
+id=b>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121941">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121941">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121941">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a>
+Date: Mon, 22 Nov 2021 12:18:43 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-4-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+From: Julien Grall &lt;julien.grall@arm.com&gt;
+
+At the moment, the VMID algorithm will send an SGI to all the
+CPUs to force an exit and then broadcast a full TLB flush and
+I-Cache invalidation.
+
+This patch uses the new VMID allocator. The benefits are:
+&#160; &#160;- Aligns with arm64 ASID algorithm.
+&#160;&#160; - CPUs are not forced to exit at roll-over. Instead,
+     the VMID will be marked reserved and context invalidation
+     is broadcasted. This will reduce the IPIs traffic.
+ &#160; - More flexible to add support for pinned KVM VMIDs in
+     the future.
+&#160; &#160;
+With the new algo, the code is now adapted:
+&#160; &#160; - The call to update_vmid() will be done with preemption
+      disabled as the new algo requires to store information
+      per-CPU.
+
+Signed-off-by: Julien Grall &lt;julien.grall@arm.com&gt;
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a>     |   4 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h>arch/arm64/include/asm/kvm_mmu.h</a>      |   4 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile>arch/arm64/kvm/Makefile</a>               |   2 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c>arch/arm64/kvm/arm.c</a>                  | 105 ++++----------------------
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c>arch/arm64/kvm/hyp/nvhe/mem_protect.c</a> |   3 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c>arch/arm64/kvm/mmu.c</a>                  |   1 -
+ 6 files <a href="#related">changed</a>, 22 insertions(+), 97 deletions(-)
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 51af17e16115..752d4408e3d0 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -72,9 +72,7 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
+</span> void kvm_arm_vcpu_destroy(struct kvm_vcpu *vcpu);
+ 
+ struct kvm_vmid {
+<span
+class="del">-	/* The VMID generation used for the virt. memory system */
+-	u64    vmid_gen;
+-	u32    vmid;
+</span><span
+class="add">+	atomic64_t id;
+</span> };
+ 
+ struct kvm_s2_mmu {
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h>diff</a> --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h
+index 02d378887743..d8e6266b8d46 100644
+--- a/arch/arm64/include/asm/kvm_mmu.h
++++ b/arch/arm64/include/asm/kvm_mmu.h
+</span><span
+class="hunk">@@ -115,6 +115,7 @@ alternative_cb_end
+</span> #include &lt;asm/cache.h&gt;
+ #include &lt;asm/cacheflush.h&gt;
+ #include &lt;asm/mmu_context.h&gt;
+<span
+class="add">+#include &lt;asm/kvm_host.h&gt;
+</span> 
+ void kvm_update_va_mask(struct alt_instr *alt,
+ 			__le32 *origptr, __le32 *updptr, int nr_inst);
+<span
+class="hunk">@@ -264,7 +265,8 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
+</span> 	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
+ 
+ 	baddr = mmu-&gt;pgd_phys;
+<span
+class="del">-	vmid_field = (u64)READ_ONCE(vmid-&gt;vmid) &lt;&lt; VTTBR_VMID_SHIFT;
+</span><span
+class="add">+	vmid_field = atomic64_read(&#38;vmid-&gt;id) &lt;&lt; VTTBR_VMID_SHIFT;
++	vmid_field &#38;= VTTBR_VMID_MASK(kvm_arm_vmid_bits);
+</span> 	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
+ }
+ 
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile>diff</a> --git a/arch/arm64/kvm/Makefile b/arch/arm64/kvm/Makefile
+index 989bb5dad2c8..4a607d52356c 100644
+--- a/arch/arm64/kvm/Makefile
++++ b/arch/arm64/kvm/Makefile
+</span><span
+class="hunk">@@ -16,7 +16,7 @@ kvm-y := $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/eventfd.o \
+</span> 	 inject_fault.o va_layout.o handle_exit.o \
+ 	 guest.o debug.o reset.o sys_regs.o \
+ 	 vgic-sys-reg-v3.o fpsimd.o pmu.o \
+<span
+class="del">-	 arch_timer.o trng.o\
+</span><span
+class="add">+	 arch_timer.o trng.o vmid.o \
+</span> 	 vgic/vgic.o vgic/vgic-init.o \
+ 	 vgic/vgic-irqfd.o vgic/vgic-v2.o \
+ 	 vgic/vgic-v3.o vgic/vgic-v4.o \
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c>diff</a> --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index 2f03cbfefe67..0544011b0fc6 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+</span><span
+class="hunk">@@ -53,11 +53,6 @@ static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
+</span> unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
+ DECLARE_KVM_NVHE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
+ 
+<span
+class="del">-/* The VMID used in the VTTBR */
+-static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
+-static u32 kvm_next_vmid;
+-static DEFINE_SPINLOCK(kvm_vmid_lock);
+-
+</span> static bool vgic_present;
+ 
+ static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
+<span
+class="hunk">@@ -496,87 +491,6 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+</span> 	return vcpu_mode_priv(vcpu);
+ }
+ 
+<span
+class="del">-/* Just ensure a guest exit from a particular CPU */
+-static void exit_vm_noop(void *info)
+-{
+-}
+-
+-void force_vm_exit(const cpumask_t *mask)
+-{
+-	preempt_disable();
+-	smp_call_function_many(mask, exit_vm_noop, NULL, true);
+-	preempt_enable();
+-}
+-
+-/**
+- * need_new_vmid_gen - check that the VMID is still valid
+- * @vmid: The VMID to check
+- *
+- * return true if there is a new generation of VMIDs being used
+- *
+- * The hardware supports a limited set of values with the value zero reserved
+- * for the host, so we check if an assigned value belongs to a previous
+- * generation, which requires us to assign a new value. If we&#39;re the first to
+- * use a VMID for the new generation, we must flush necessary caches and TLBs
+- * on all CPUs.
+- */
+-static bool need_new_vmid_gen(struct kvm_vmid *vmid)
+-{
+-	u64 current_vmid_gen = atomic64_read(&#38;kvm_vmid_gen);
+-	smp_rmb(); /* Orders read of kvm_vmid_gen and kvm-&gt;arch.vmid */
+-	return unlikely(READ_ONCE(vmid-&gt;vmid_gen) != current_vmid_gen);
+-}
+-
+-/**
+- * update_vmid - Update the vmid with a valid VMID for the current generation
+- * @vmid: The stage-2 VMID information struct
+- */
+-static void update_vmid(struct kvm_vmid *vmid)
+-{
+-	if (!need_new_vmid_gen(vmid))
+-		return;
+-
+-	spin_lock(&#38;kvm_vmid_lock);
+-
+-	/*
+-	 * We need to re-check the vmid_gen here to ensure that if another vcpu
+-	 * already allocated a valid vmid for this vm, then this vcpu should
+-	 * use the same vmid.
+-	 */
+-	if (!need_new_vmid_gen(vmid)) {
+-		spin_unlock(&#38;kvm_vmid_lock);
+-		return;
+-	}
+-
+-	/* First user of a new VMID generation? */
+-	if (unlikely(kvm_next_vmid == 0)) {
+-		atomic64_inc(&#38;kvm_vmid_gen);
+-		kvm_next_vmid = 1;
+-
+-		/*
+-		 * On SMP we know no other CPUs can use this CPU&#39;s or each
+-		 * other&#39;s VMID after force_vm_exit returns since the
+-		 * kvm_vmid_lock blocks them from reentry to the guest.
+-		 */
+-		force_vm_exit(cpu_all_mask);
+-		/*
+-		 * Now broadcast TLB + ICACHE invalidation over the inner
+-		 * shareable domain to make sure all data structures are
+-		 * clean.
+-		 */
+-		kvm_call_hyp(__kvm_flush_vm_context);
+-	}
+-
+-	WRITE_ONCE(vmid-&gt;vmid, kvm_next_vmid);
+-	kvm_next_vmid++;
+-	kvm_next_vmid &#38;= (1 &lt;&lt; kvm_get_vmid_bits()) - 1;
+-
+-	smp_wmb();
+-	WRITE_ONCE(vmid-&gt;vmid_gen, atomic64_read(&#38;kvm_vmid_gen));
+-
+-	spin_unlock(&#38;kvm_vmid_lock);
+-}
+-
+</span> static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
+ {
+ 	struct kvm *kvm = vcpu-&gt;kvm;
+<span
+class="hunk">@@ -753,7 +667,6 @@ static bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu, int *ret)
+</span> 	}
+ 
+ 	return kvm_request_pending(vcpu) ||
+<span
+class="del">-			need_new_vmid_gen(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid) ||
+</span> 			xfer_to_guest_mode_work_pending();
+ }
+ 
+<span
+class="hunk">@@ -804,8 +717,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+</span> 		if (!ret)
+ 			ret = 1;
+ 
+<span
+class="del">-		update_vmid(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid);
+-
+</span> 		check_vcpu_requests(vcpu);
+ 
+ 		/*
+<span
+class="hunk">@@ -815,6 +726,15 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+</span> 		 */
+ 		preempt_disable();
+ 
+<span
+class="add">+		/*
++		 * The VMID allocator only tracks active VMIDs per
++		 * physical CPU, and therefore the VMID allocated may not be
++		 * preserved on VMID roll-over if the task was preempted,
++		 * making a thread&#39;s VMID inactive. So we need to call
++		 * kvm_arm_vmid_update() in non-premptible context.
++		 */
++		kvm_arm_vmid_update(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid);
++
+</span> 		kvm_pmu_flush_hwstate(vcpu);
+ 
+ 		local_irq_disable();
+<span
+class="hunk">@@ -2111,6 +2031,12 @@ int kvm_arch_init(void *opaque)
+</span> 	if (err)
+ 		return err;
+ 
+<span
+class="add">+	err = kvm_arm_vmid_alloc_init();
++	if (err) {
++		kvm_err(&#34;Failed to initialize VMID allocator.\n&#34;);
++		return err;
++	}
++
+</span> 	if (!in_hyp_mode) {
+ 		err = init_hyp_mode();
+ 		if (err)
+<span
+class="hunk">@@ -2150,6 +2076,7 @@ int kvm_arch_init(void *opaque)
+</span> 	if (!in_hyp_mode)
+ 		teardown_hyp_mode();
+ out_err:
+<span
+class="add">+	kvm_arm_vmid_alloc_free();
+</span> 	return err;
+ }
+ 
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c>diff</a> --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index c1a90dd022b8..136141f7d524 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+</span><span
+class="hunk">@@ -117,8 +117,7 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
+</span> 	mmu-&gt;pgd_phys = __hyp_pa(host_kvm.pgt.pgd);
+ 	mmu-&gt;arch = &#38;host_kvm.arch;
+ 	mmu-&gt;pgt = &#38;host_kvm.pgt;
+<span
+class="del">-	WRITE_ONCE(mmu-&gt;vmid.vmid_gen, 0);
+-	WRITE_ONCE(mmu-&gt;vmid.vmid, 0);
+</span><span
+class="add">+	atomic64_set(&#38;mmu-&gt;vmid.id, 0);
+</span> 
+ 	return 0;
+ }
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c>diff</a> --git a/arch/arm64/kvm/mmu.c b/arch/arm64/kvm/mmu.c
+index 326cdfec74a1..f1f4bbe5adeb 100644
+--- a/arch/arm64/kvm/mmu.c
++++ b/arch/arm64/kvm/mmu.c
+</span><span
+class="hunk">@@ -532,7 +532,6 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
+</span> 	mmu-&gt;arch = &#38;kvm-&gt;arch;
+ 	mmu-&gt;pgt = pgt;
+ 	mmu-&gt;pgd_phys = __pa(pgt-&gt;pgd);
+<span
+class="del">-	WRITE_ONCE(mmu-&gt;vmid.vmid_gen, 0);
+</span> 	return 0;
+ 
+ out_destroy_pgtable:
+-- 
+2.17.1
+
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122123200">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122123200">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122123200">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a>
+Date: Mon, 22 Nov 2021 12:18:43 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-4-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+From: Julien Grall &lt;julien.grall@arm.com&gt;
+
+At the moment, the VMID algorithm will send an SGI to all the
+CPUs to force an exit and then broadcast a full TLB flush and
+I-Cache invalidation.
+
+This patch uses the new VMID allocator. The benefits are:
+&#160; &#160;- Aligns with arm64 ASID algorithm.
+&#160;&#160; - CPUs are not forced to exit at roll-over. Instead,
+     the VMID will be marked reserved and context invalidation
+     is broadcasted. This will reduce the IPIs traffic.
+ &#160; - More flexible to add support for pinned KVM VMIDs in
+     the future.
+&#160; &#160;
+With the new algo, the code is now adapted:
+&#160; &#160; - The call to update_vmid() will be done with preemption
+      disabled as the new algo requires to store information
+      per-CPU.
+
+Signed-off-by: Julien Grall &lt;julien.grall@arm.com&gt;
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a>     |   4 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h>arch/arm64/include/asm/kvm_mmu.h</a>      |   4 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile>arch/arm64/kvm/Makefile</a>               |   2 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c>arch/arm64/kvm/arm.c</a>                  | 105 ++++----------------------
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c>arch/arm64/kvm/hyp/nvhe/mem_protect.c</a> |   3 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c>arch/arm64/kvm/mmu.c</a>                  |   1 -
+ 6 files <a href="#related">changed</a>, 22 insertions(+), 97 deletions(-)
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 51af17e16115..752d4408e3d0 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -72,9 +72,7 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
+</span> void kvm_arm_vcpu_destroy(struct kvm_vcpu *vcpu);
+ 
+ struct kvm_vmid {
+<span
+class="del">-	/* The VMID generation used for the virt. memory system */
+-	u64    vmid_gen;
+-	u32    vmid;
+</span><span
+class="add">+	atomic64_t id;
+</span> };
+ 
+ struct kvm_s2_mmu {
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h>diff</a> --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h
+index 02d378887743..d8e6266b8d46 100644
+--- a/arch/arm64/include/asm/kvm_mmu.h
++++ b/arch/arm64/include/asm/kvm_mmu.h
+</span><span
+class="hunk">@@ -115,6 +115,7 @@ alternative_cb_end
+</span> #include &lt;asm/cache.h&gt;
+ #include &lt;asm/cacheflush.h&gt;
+ #include &lt;asm/mmu_context.h&gt;
+<span
+class="add">+#include &lt;asm/kvm_host.h&gt;
+</span> 
+ void kvm_update_va_mask(struct alt_instr *alt,
+ 			__le32 *origptr, __le32 *updptr, int nr_inst);
+<span
+class="hunk">@@ -264,7 +265,8 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
+</span> 	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
+ 
+ 	baddr = mmu-&gt;pgd_phys;
+<span
+class="del">-	vmid_field = (u64)READ_ONCE(vmid-&gt;vmid) &lt;&lt; VTTBR_VMID_SHIFT;
+</span><span
+class="add">+	vmid_field = atomic64_read(&#38;vmid-&gt;id) &lt;&lt; VTTBR_VMID_SHIFT;
++	vmid_field &#38;= VTTBR_VMID_MASK(kvm_arm_vmid_bits);
+</span> 	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
+ }
+ 
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile>diff</a> --git a/arch/arm64/kvm/Makefile b/arch/arm64/kvm/Makefile
+index 989bb5dad2c8..4a607d52356c 100644
+--- a/arch/arm64/kvm/Makefile
++++ b/arch/arm64/kvm/Makefile
+</span><span
+class="hunk">@@ -16,7 +16,7 @@ kvm-y := $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/eventfd.o \
+</span> 	 inject_fault.o va_layout.o handle_exit.o \
+ 	 guest.o debug.o reset.o sys_regs.o \
+ 	 vgic-sys-reg-v3.o fpsimd.o pmu.o \
+<span
+class="del">-	 arch_timer.o trng.o\
+</span><span
+class="add">+	 arch_timer.o trng.o vmid.o \
+</span> 	 vgic/vgic.o vgic/vgic-init.o \
+ 	 vgic/vgic-irqfd.o vgic/vgic-v2.o \
+ 	 vgic/vgic-v3.o vgic/vgic-v4.o \
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c>diff</a> --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index 2f03cbfefe67..0544011b0fc6 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+</span><span
+class="hunk">@@ -53,11 +53,6 @@ static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
+</span> unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
+ DECLARE_KVM_NVHE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
+ 
+<span
+class="del">-/* The VMID used in the VTTBR */
+-static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
+-static u32 kvm_next_vmid;
+-static DEFINE_SPINLOCK(kvm_vmid_lock);
+-
+</span> static bool vgic_present;
+ 
+ static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
+<span
+class="hunk">@@ -496,87 +491,6 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+</span> 	return vcpu_mode_priv(vcpu);
+ }
+ 
+<span
+class="del">-/* Just ensure a guest exit from a particular CPU */
+-static void exit_vm_noop(void *info)
+-{
+-}
+-
+-void force_vm_exit(const cpumask_t *mask)
+-{
+-	preempt_disable();
+-	smp_call_function_many(mask, exit_vm_noop, NULL, true);
+-	preempt_enable();
+-}
+-
+-/**
+- * need_new_vmid_gen - check that the VMID is still valid
+- * @vmid: The VMID to check
+- *
+- * return true if there is a new generation of VMIDs being used
+- *
+- * The hardware supports a limited set of values with the value zero reserved
+- * for the host, so we check if an assigned value belongs to a previous
+- * generation, which requires us to assign a new value. If we&#39;re the first to
+- * use a VMID for the new generation, we must flush necessary caches and TLBs
+- * on all CPUs.
+- */
+-static bool need_new_vmid_gen(struct kvm_vmid *vmid)
+-{
+-	u64 current_vmid_gen = atomic64_read(&#38;kvm_vmid_gen);
+-	smp_rmb(); /* Orders read of kvm_vmid_gen and kvm-&gt;arch.vmid */
+-	return unlikely(READ_ONCE(vmid-&gt;vmid_gen) != current_vmid_gen);
+-}
+-
+-/**
+- * update_vmid - Update the vmid with a valid VMID for the current generation
+- * @vmid: The stage-2 VMID information struct
+- */
+-static void update_vmid(struct kvm_vmid *vmid)
+-{
+-	if (!need_new_vmid_gen(vmid))
+-		return;
+-
+-	spin_lock(&#38;kvm_vmid_lock);
+-
+-	/*
+-	 * We need to re-check the vmid_gen here to ensure that if another vcpu
+-	 * already allocated a valid vmid for this vm, then this vcpu should
+-	 * use the same vmid.
+-	 */
+-	if (!need_new_vmid_gen(vmid)) {
+-		spin_unlock(&#38;kvm_vmid_lock);
+-		return;
+-	}
+-
+-	/* First user of a new VMID generation? */
+-	if (unlikely(kvm_next_vmid == 0)) {
+-		atomic64_inc(&#38;kvm_vmid_gen);
+-		kvm_next_vmid = 1;
+-
+-		/*
+-		 * On SMP we know no other CPUs can use this CPU&#39;s or each
+-		 * other&#39;s VMID after force_vm_exit returns since the
+-		 * kvm_vmid_lock blocks them from reentry to the guest.
+-		 */
+-		force_vm_exit(cpu_all_mask);
+-		/*
+-		 * Now broadcast TLB + ICACHE invalidation over the inner
+-		 * shareable domain to make sure all data structures are
+-		 * clean.
+-		 */
+-		kvm_call_hyp(__kvm_flush_vm_context);
+-	}
+-
+-	WRITE_ONCE(vmid-&gt;vmid, kvm_next_vmid);
+-	kvm_next_vmid++;
+-	kvm_next_vmid &#38;= (1 &lt;&lt; kvm_get_vmid_bits()) - 1;
+-
+-	smp_wmb();
+-	WRITE_ONCE(vmid-&gt;vmid_gen, atomic64_read(&#38;kvm_vmid_gen));
+-
+-	spin_unlock(&#38;kvm_vmid_lock);
+-}
+-
+</span> static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
+ {
+ 	struct kvm *kvm = vcpu-&gt;kvm;
+<span
+class="hunk">@@ -753,7 +667,6 @@ static bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu, int *ret)
+</span> 	}
+ 
+ 	return kvm_request_pending(vcpu) ||
+<span
+class="del">-			need_new_vmid_gen(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid) ||
+</span> 			xfer_to_guest_mode_work_pending();
+ }
+ 
+<span
+class="hunk">@@ -804,8 +717,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+</span> 		if (!ret)
+ 			ret = 1;
+ 
+<span
+class="del">-		update_vmid(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid);
+-
+</span> 		check_vcpu_requests(vcpu);
+ 
+ 		/*
+<span
+class="hunk">@@ -815,6 +726,15 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+</span> 		 */
+ 		preempt_disable();
+ 
+<span
+class="add">+		/*
++		 * The VMID allocator only tracks active VMIDs per
++		 * physical CPU, and therefore the VMID allocated may not be
++		 * preserved on VMID roll-over if the task was preempted,
++		 * making a thread&#39;s VMID inactive. So we need to call
++		 * kvm_arm_vmid_update() in non-premptible context.
++		 */
++		kvm_arm_vmid_update(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid);
++
+</span> 		kvm_pmu_flush_hwstate(vcpu);
+ 
+ 		local_irq_disable();
+<span
+class="hunk">@@ -2111,6 +2031,12 @@ int kvm_arch_init(void *opaque)
+</span> 	if (err)
+ 		return err;
+ 
+<span
+class="add">+	err = kvm_arm_vmid_alloc_init();
++	if (err) {
++		kvm_err(&#34;Failed to initialize VMID allocator.\n&#34;);
++		return err;
++	}
++
+</span> 	if (!in_hyp_mode) {
+ 		err = init_hyp_mode();
+ 		if (err)
+<span
+class="hunk">@@ -2150,6 +2076,7 @@ int kvm_arch_init(void *opaque)
+</span> 	if (!in_hyp_mode)
+ 		teardown_hyp_mode();
+ out_err:
+<span
+class="add">+	kvm_arm_vmid_alloc_free();
+</span> 	return err;
+ }
+ 
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c>diff</a> --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index c1a90dd022b8..136141f7d524 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+</span><span
+class="hunk">@@ -117,8 +117,7 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
+</span> 	mmu-&gt;pgd_phys = __hyp_pa(host_kvm.pgt.pgd);
+ 	mmu-&gt;arch = &#38;host_kvm.arch;
+ 	mmu-&gt;pgt = &#38;host_kvm.pgt;
+<span
+class="del">-	WRITE_ONCE(mmu-&gt;vmid.vmid_gen, 0);
+-	WRITE_ONCE(mmu-&gt;vmid.vmid, 0);
+</span><span
+class="add">+	atomic64_set(&#38;mmu-&gt;vmid.id, 0);
+</span> 
+ 	return 0;
+ }
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c>diff</a> --git a/arch/arm64/kvm/mmu.c b/arch/arm64/kvm/mmu.c
+index 326cdfec74a1..f1f4bbe5adeb 100644
+--- a/arch/arm64/kvm/mmu.c
++++ b/arch/arm64/kvm/mmu.c
+</span><span
+class="hunk">@@ -532,7 +532,6 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
+</span> 	mmu-&gt;arch = &#38;kvm-&gt;arch;
+ 	mmu-&gt;pgt = pgt;
+ 	mmu-&gt;pgd_phys = __pa(pgt-&gt;pgd);
+<span
+class="del">-	WRITE_ONCE(mmu-&gt;vmid.vmid_gen, 0);
+</span> 	return 0;
+ 
+ out_destroy_pgtable:
+-- 
+2.17.1
+
+
+_______________________________________________
+linux-arm-kernel mailing list
+linux-arm-kernel@lists.infradead.org
+<a
+href="http://lists.infradead.org/mailman/listinfo/linux-arm-kernel">http://lists.infradead.org/mailman/listinfo/linux-arm-kernel</a>
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121942">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121942">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121942">linux-kernel@vger.kernel.org</a>&gt;
+Cc: jean-philippe@linaro.org, maz@kernel.org, linuxarm@huawei.com,
+	jonathan.cameron@huawei.com, catalin.marinas@arm.com,
+	will@kernel.org
+Subject: <a
+href="#r"
+id=t>[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a>
+Date: Mon, 22 Nov 2021 12:18:43 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-4-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+In-Reply-To: &lt;<a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">20211122121844.867-1-shameerali.kolothum.thodi@huawei.com</a>&gt;
+
+From: Julien Grall &lt;julien.grall@arm.com&gt;
+
+At the moment, the VMID algorithm will send an SGI to all the
+CPUs to force an exit and then broadcast a full TLB flush and
+I-Cache invalidation.
+
+This patch uses the new VMID allocator. The benefits are:
+&#160; &#160;- Aligns with arm64 ASID algorithm.
+&#160;&#160; - CPUs are not forced to exit at roll-over. Instead,
+     the VMID will be marked reserved and context invalidation
+     is broadcasted. This will reduce the IPIs traffic.
+ &#160; - More flexible to add support for pinned KVM VMIDs in
+     the future.
+&#160; &#160;
+With the new algo, the code is now adapted:
+&#160; &#160; - The call to update_vmid() will be done with preemption
+      disabled as the new algo requires to store information
+      per-CPU.
+
+Signed-off-by: Julien Grall &lt;julien.grall@arm.com&gt;
+Signed-off-by: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+---
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>arch/arm64/include/asm/kvm_host.h</a>     |   4 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h>arch/arm64/include/asm/kvm_mmu.h</a>      |   4 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile>arch/arm64/kvm/Makefile</a>               |   2 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c>arch/arm64/kvm/arm.c</a>                  | 105 ++++----------------------
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c>arch/arm64/kvm/hyp/nvhe/mem_protect.c</a> |   3 +-
+ <a
+id=iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c
+href=#Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c>arch/arm64/kvm/mmu.c</a>                  |   1 -
+ 6 files <a href="#related">changed</a>, 22 insertions(+), 97 deletions(-)
+
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_host.h>diff</a> --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 51af17e16115..752d4408e3d0 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+</span><span
+class="hunk">@@ -72,9 +72,7 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
+</span> void kvm_arm_vcpu_destroy(struct kvm_vcpu *vcpu);
+ 
+ struct kvm_vmid {
+<span
+class="del">-	/* The VMID generation used for the virt. memory system */
+-	u64    vmid_gen;
+-	u32    vmid;
+</span><span
+class="add">+	atomic64_t id;
+</span> };
+ 
+ struct kvm_s2_mmu {
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:include:asm:kvm_mmu.h>diff</a> --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h
+index 02d378887743..d8e6266b8d46 100644
+--- a/arch/arm64/include/asm/kvm_mmu.h
++++ b/arch/arm64/include/asm/kvm_mmu.h
+</span><span
+class="hunk">@@ -115,6 +115,7 @@ alternative_cb_end
+</span> #include &lt;asm/cache.h&gt;
+ #include &lt;asm/cacheflush.h&gt;
+ #include &lt;asm/mmu_context.h&gt;
+<span
+class="add">+#include &lt;asm/kvm_host.h&gt;
+</span> 
+ void kvm_update_va_mask(struct alt_instr *alt,
+ 			__le32 *origptr, __le32 *updptr, int nr_inst);
+<span
+class="hunk">@@ -264,7 +265,8 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
+</span> 	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
+ 
+ 	baddr = mmu-&gt;pgd_phys;
+<span
+class="del">-	vmid_field = (u64)READ_ONCE(vmid-&gt;vmid) &lt;&lt; VTTBR_VMID_SHIFT;
+</span><span
+class="add">+	vmid_field = atomic64_read(&#38;vmid-&gt;id) &lt;&lt; VTTBR_VMID_SHIFT;
++	vmid_field &#38;= VTTBR_VMID_MASK(kvm_arm_vmid_bits);
+</span> 	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
+ }
+ 
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:Makefile>diff</a> --git a/arch/arm64/kvm/Makefile b/arch/arm64/kvm/Makefile
+index 989bb5dad2c8..4a607d52356c 100644
+--- a/arch/arm64/kvm/Makefile
++++ b/arch/arm64/kvm/Makefile
+</span><span
+class="hunk">@@ -16,7 +16,7 @@ kvm-y := $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/eventfd.o \
+</span> 	 inject_fault.o va_layout.o handle_exit.o \
+ 	 guest.o debug.o reset.o sys_regs.o \
+ 	 vgic-sys-reg-v3.o fpsimd.o pmu.o \
+<span
+class="del">-	 arch_timer.o trng.o\
+</span><span
+class="add">+	 arch_timer.o trng.o vmid.o \
+</span> 	 vgic/vgic.o vgic/vgic-init.o \
+ 	 vgic/vgic-irqfd.o vgic/vgic-v2.o \
+ 	 vgic/vgic-v3.o vgic/vgic-v4.o \
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:arm.c>diff</a> --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index 2f03cbfefe67..0544011b0fc6 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+</span><span
+class="hunk">@@ -53,11 +53,6 @@ static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
+</span> unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
+ DECLARE_KVM_NVHE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
+ 
+<span
+class="del">-/* The VMID used in the VTTBR */
+-static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
+-static u32 kvm_next_vmid;
+-static DEFINE_SPINLOCK(kvm_vmid_lock);
+-
+</span> static bool vgic_present;
+ 
+ static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
+<span
+class="hunk">@@ -496,87 +491,6 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+</span> 	return vcpu_mode_priv(vcpu);
+ }
+ 
+<span
+class="del">-/* Just ensure a guest exit from a particular CPU */
+-static void exit_vm_noop(void *info)
+-{
+-}
+-
+-void force_vm_exit(const cpumask_t *mask)
+-{
+-	preempt_disable();
+-	smp_call_function_many(mask, exit_vm_noop, NULL, true);
+-	preempt_enable();
+-}
+-
+-/**
+- * need_new_vmid_gen - check that the VMID is still valid
+- * @vmid: The VMID to check
+- *
+- * return true if there is a new generation of VMIDs being used
+- *
+- * The hardware supports a limited set of values with the value zero reserved
+- * for the host, so we check if an assigned value belongs to a previous
+- * generation, which requires us to assign a new value. If we&#39;re the first to
+- * use a VMID for the new generation, we must flush necessary caches and TLBs
+- * on all CPUs.
+- */
+-static bool need_new_vmid_gen(struct kvm_vmid *vmid)
+-{
+-	u64 current_vmid_gen = atomic64_read(&#38;kvm_vmid_gen);
+-	smp_rmb(); /* Orders read of kvm_vmid_gen and kvm-&gt;arch.vmid */
+-	return unlikely(READ_ONCE(vmid-&gt;vmid_gen) != current_vmid_gen);
+-}
+-
+-/**
+- * update_vmid - Update the vmid with a valid VMID for the current generation
+- * @vmid: The stage-2 VMID information struct
+- */
+-static void update_vmid(struct kvm_vmid *vmid)
+-{
+-	if (!need_new_vmid_gen(vmid))
+-		return;
+-
+-	spin_lock(&#38;kvm_vmid_lock);
+-
+-	/*
+-	 * We need to re-check the vmid_gen here to ensure that if another vcpu
+-	 * already allocated a valid vmid for this vm, then this vcpu should
+-	 * use the same vmid.
+-	 */
+-	if (!need_new_vmid_gen(vmid)) {
+-		spin_unlock(&#38;kvm_vmid_lock);
+-		return;
+-	}
+-
+-	/* First user of a new VMID generation? */
+-	if (unlikely(kvm_next_vmid == 0)) {
+-		atomic64_inc(&#38;kvm_vmid_gen);
+-		kvm_next_vmid = 1;
+-
+-		/*
+-		 * On SMP we know no other CPUs can use this CPU&#39;s or each
+-		 * other&#39;s VMID after force_vm_exit returns since the
+-		 * kvm_vmid_lock blocks them from reentry to the guest.
+-		 */
+-		force_vm_exit(cpu_all_mask);
+-		/*
+-		 * Now broadcast TLB + ICACHE invalidation over the inner
+-		 * shareable domain to make sure all data structures are
+-		 * clean.
+-		 */
+-		kvm_call_hyp(__kvm_flush_vm_context);
+-	}
+-
+-	WRITE_ONCE(vmid-&gt;vmid, kvm_next_vmid);
+-	kvm_next_vmid++;
+-	kvm_next_vmid &#38;= (1 &lt;&lt; kvm_get_vmid_bits()) - 1;
+-
+-	smp_wmb();
+-	WRITE_ONCE(vmid-&gt;vmid_gen, atomic64_read(&#38;kvm_vmid_gen));
+-
+-	spin_unlock(&#38;kvm_vmid_lock);
+-}
+-
+</span> static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
+ {
+ 	struct kvm *kvm = vcpu-&gt;kvm;
+<span
+class="hunk">@@ -753,7 +667,6 @@ static bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu, int *ret)
+</span> 	}
+ 
+ 	return kvm_request_pending(vcpu) ||
+<span
+class="del">-			need_new_vmid_gen(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid) ||
+</span> 			xfer_to_guest_mode_work_pending();
+ }
+ 
+<span
+class="hunk">@@ -804,8 +717,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+</span> 		if (!ret)
+ 			ret = 1;
+ 
+<span
+class="del">-		update_vmid(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid);
+-
+</span> 		check_vcpu_requests(vcpu);
+ 
+ 		/*
+<span
+class="hunk">@@ -815,6 +726,15 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+</span> 		 */
+ 		preempt_disable();
+ 
+<span
+class="add">+		/*
++		 * The VMID allocator only tracks active VMIDs per
++		 * physical CPU, and therefore the VMID allocated may not be
++		 * preserved on VMID roll-over if the task was preempted,
++		 * making a thread&#39;s VMID inactive. So we need to call
++		 * kvm_arm_vmid_update() in non-premptible context.
++		 */
++		kvm_arm_vmid_update(&#38;vcpu-&gt;arch.hw_mmu-&gt;vmid);
++
+</span> 		kvm_pmu_flush_hwstate(vcpu);
+ 
+ 		local_irq_disable();
+<span
+class="hunk">@@ -2111,6 +2031,12 @@ int kvm_arch_init(void *opaque)
+</span> 	if (err)
+ 		return err;
+ 
+<span
+class="add">+	err = kvm_arm_vmid_alloc_init();
++	if (err) {
++		kvm_err(&#34;Failed to initialize VMID allocator.\n&#34;);
++		return err;
++	}
++
+</span> 	if (!in_hyp_mode) {
+ 		err = init_hyp_mode();
+ 		if (err)
+<span
+class="hunk">@@ -2150,6 +2076,7 @@ int kvm_arch_init(void *opaque)
+</span> 	if (!in_hyp_mode)
+ 		teardown_hyp_mode();
+ out_err:
+<span
+class="add">+	kvm_arm_vmid_alloc_free();
+</span> 	return err;
+ }
+ 
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:hyp:nvhe:mem_protect.c>diff</a> --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index c1a90dd022b8..136141f7d524 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+</span><span
+class="hunk">@@ -117,8 +117,7 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
+</span> 	mmu-&gt;pgd_phys = __hyp_pa(host_kvm.pgt.pgd);
+ 	mmu-&gt;arch = &#38;host_kvm.arch;
+ 	mmu-&gt;pgt = &#38;host_kvm.pgt;
+<span
+class="del">-	WRITE_ONCE(mmu-&gt;vmid.vmid_gen, 0);
+-	WRITE_ONCE(mmu-&gt;vmid.vmid, 0);
+</span><span
+class="add">+	atomic64_set(&#38;mmu-&gt;vmid.id, 0);
+</span> 
+ 	return 0;
+ }
+<span
+class="head"><a
+href=#iZ2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c
+id=Z2e.:20211122121844.867-4-shameerali.kolothum.thodi::40huawei.com:1arch:arm64:kvm:mmu.c>diff</a> --git a/arch/arm64/kvm/mmu.c b/arch/arm64/kvm/mmu.c
+index 326cdfec74a1..f1f4bbe5adeb 100644
+--- a/arch/arm64/kvm/mmu.c
++++ b/arch/arm64/kvm/mmu.c
+</span><span
+class="hunk">@@ -532,7 +532,6 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
+</span> 	mmu-&gt;arch = &#38;kvm-&gt;arch;
+ 	mmu-&gt;pgt = pgt;
+ 	mmu-&gt;pgd_phys = __pa(pgt-&gt;pgd);
+<span
+class="del">-	WRITE_ONCE(mmu-&gt;vmid.vmid_gen, 0);
+</span> 	return 0;
+ 
+ out_destroy_pgtable:
+-- 
+2.17.1
+
+_______________________________________________
+kvmarm mailing list
+kvmarm@lists.cs.columbia.edu
+<a
+href="https://lists.cs.columbia.edu/mailman/listinfo/kvmarm">https://lists.cs.columbia.edu/mailman/listinfo/kvmarm</a>
+</pre><hr><pre><a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/"
+rel=next>next</a> <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/"
+rel=prev>prev</a> <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">parent</a> <a
+href="#R">reply</a>	other threads:[<a
+href="../?t=20211122121941">~2021-11-22 12:19 UTC</a>|<a
+href="../">newest</a>]
+
+<b>Thread overview: </b>39+ messages / expand[<a
+href="T/#u">flat</a>|<a
+href="t/#u">nested</a>]  <a
+href="t.mbox.gz">mbox.gz</a>  <a
+href="t.atom">Atom feed</a>  <a
+href="#b">top</a>
+2021-11-22 12:18 <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameer Kolothum
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-21  7:35   ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  8:44     ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+<b>2021-11-22 12:18 ` <a
+id=r
+href="#t">Shameer Kolothum [this message]</a></b>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 4/4] KVM: arm64: Make active_vmids invalid on vCPU schedule out</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-05 13:25 ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameerali Kolothum Thodi
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-18 12:32 ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-19  9:23   ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 11:49     ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 12:30       ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-02-08 17:37 ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+</pre><form id=related
+action=../
+><pre>find likely ancestor, descendant, or conflicting patches for <a
+href=#t>this message</a>:
+<textarea name=q cols=72 rows=14>( dfblob:51af17e1611 dfblob:752d4408e3d dfblob:02d37888774
+dfblob:d8e6266b8d4 dfblob:989bb5dad2c dfblob:4a607d52356
+dfblob:2f03cbfefe6 dfblob:0544011b0fc dfblob:c1a90dd022b
+dfblob:136141f7d52 dfblob:326cdfec74a dfblob:f1f4bbe5ade
+dfblob:51af17e1611 dfblob:752d4408e3d dfblob:02d37888774
+dfblob:d8e6266b8d4 dfblob:989bb5dad2c dfblob:4a607d52356
+dfblob:2f03cbfefe6 dfblob:0544011b0fc dfblob:c1a90dd022b
+dfblob:136141f7d52 dfblob:326cdfec74a dfblob:f1f4bbe5ade
+dfblob:51af17e1611 dfblob:752d4408e3d dfblob:02d37888774
+dfblob:d8e6266b8d4 dfblob:989bb5dad2c dfblob:4a607d52356
+dfblob:2f03cbfefe6 dfblob:0544011b0fc dfblob:c1a90dd022b
+dfblob:136141f7d52 dfblob:326cdfec74a dfblob:f1f4bbe5ade )
+ OR (
+bs:&#34;[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID&#34; )</textarea>
+<input type=submit value=search
+/>	(<a href=../_/text/help/#search>help</a>)</pre></form>
+<hr><pre
+id=R><b>Reply instructions:</b>
+
+You may reply publicly to <a
+href=#t>this message</a> via plain-text email
+using any one of the following methods:
+
+* Save the following mbox file, import it into your mail client,
+  and reply-to-all from there: <a
+href=raw>mbox</a>
+
+  Avoid top-posting and favor interleaved quoting:
+  <a
+href="https://en.wikipedia.org/wiki/Posting_style#Interleaved_style">https://en.wikipedia.org/wiki/Posting_style#Interleaved_style</a>
+
+* Reply using the <b>--to</b>, <b>--cc</b>, and <b>--in-reply-to</b>
+  switches of git-send-email(1):
+
+  git send-email \
+    --in-reply-to=20211122121844.867-4-shameerali.kolothum.thodi@huawei.com \
+    --to=shameerali.kolothum.thodi@huawei.com \
+    --cc=Alexandru.Elisei@arm.com \
+    --cc=catalin.marinas@arm.com \
+    --cc=james.morse@arm.com \
+    --cc=jean-philippe@linaro.org \
+    --cc=jonathan.cameron@huawei.com \
+    --cc=julien.thierry.kdev@gmail.com \
+    --cc=kvmarm@lists.cs.columbia.edu \
+    --cc=linux-arm-kernel@lists.infradead.org \
+    --cc=linux-kernel@vger.kernel.org \
+    --cc=linuxarm@huawei.com \
+    --cc=maz@kernel.org \
+    --cc=qperret@google.com \
+    --cc=suzuki.poulose@arm.com \
+    --cc=will@kernel.org \
+    /path/to/YOUR_REPLY
+
+  <a
+href="https://kernel.org/pub/software/scm/git/docs/git-send-email.html">https://kernel.org/pub/software/scm/git/docs/git-send-email.html</a>
+
+* If your mail client supports setting the <b>In-Reply-To</b> header
+  via mailto: links, try the <a
+href="mailto:shameerali.kolothum.thodi@huawei.com?In-Reply-To=%3C20211122121844.867-4-shameerali.kolothum.thodi@huawei.com%3E&#38;Cc=Alexandru.Elisei%40arm.com%2Ccatalin.marinas%40arm.com%2Cjames.morse%40arm.com%2Cjean-philippe%40linaro.org%2Cjonathan.cameron%40huawei.com%2Cjulien.thierry.kdev%40gmail.com%2Ckvmarm%40lists.cs.columbia.edu%2Clinux-arm-kernel%40lists.infradead.org%2Clinux-kernel%40vger.kernel.org%2Clinuxarm%40huawei.com%2Cmaz%40kernel.org%2Cqperret%40google.com%2Csuzuki.poulose%40arm.com%2Cwill%40kernel.org&#38;Subject=Re%3A%20%5BPATCH%20v4%203%2F4%5D%20KVM%3A%20arm64%3A%20Align%20the%20VMID%20allocation%20with%20the%20arm64%20ASID">mailto: link</a>
+</pre>
+
+  Be sure your reply has a <b>Subject:</b> header at the top and a blank line
+  before the message body.
+<hr><pre>This is an external index of several public inboxes,
+see <a href="../_/text/mirror/">mirroring instructions</a> on how to clone and mirror
+all data and code used by this external index.</pre></body></html>

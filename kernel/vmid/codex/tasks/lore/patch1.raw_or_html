@@ -1,0 +1,514 @@
+<html><head><title>[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid - Shameer Kolothum</title><link
+rel=alternate
+title="Atom feed"
+href="../new.atom"
+type="application/atom+xml"/><style>pre{white-space:pre-wrap}*{font-size:100%;font-family:monospace}</style><link
+type=text/css
+rel=stylesheet
+href=../216light.css?6914e0a5
+media=screen,print /><link
+type=text/css
+rel=stylesheet
+href=../216dark.css?6914e0a5
+media="screen and (prefers-color-scheme:dark)" /></head><body><form
+action="../"><pre><a
+href="../?t=20211122121917"><b>All of lore.kernel.org</b></a>
+<input
+name=q
+type=text /><input
+type=submit
+value=search /> <a
+href="../_/text/help/">help</a> / <a
+href="../_/text/color/">color</a> / <a
+id=mirror
+href="../_/text/mirror/">mirror</a> / <a
+href="../new.atom">Atom feed</a></pre></form><pre
+id=b>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121917">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121917">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121917">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a>
+Date: Mon, 22 Nov 2021 12:18:40 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-1-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+
+Changes from v3:
+- Main change is in patch #4, where the VMID is now set to an
+  invalid one on vCPU schedule out. Introduced an 
+  INVALID_ACTIVE_VMID which is basically a VMID 0 with generation 1.
+&#160; Since the basic allocator algorithm reserves vmid #0, it is never
+  used as an active VMID. This (hopefully) will fix the issue of
+  unnecessarily reserving VMID space with active_vmids when those
+  VMs are no longer active[0] and at the same time address the
+  problem noted in v3 wherein everything ends up in slow-path[1].
+
+Testing:
+&#160;-Run with VMID bit set to 4 and maxcpus to 8 on D06. The test
+  involves running concurrently 50 guests with 4 vCPUs. Each
+  guest will then execute hackbench 5 times before exiting.
+  No crash was observed for a 4-day continuous run.
+&#160; The latest branch is here,
+&#160; &#160;<a
+href="https://github.com/hisilicon/kernel-dev/tree/private-v5.16-rc1-vmid-v4">https://github.com/hisilicon/kernel-dev/tree/private-v5.16-rc1-vmid-v4</a>
+
+&#160;-TLA+ model. Modified the asidalloc model to incorporate the new
+  VMID algo. The main differences are,
+&#160; -flush_tlb_all() instead of local_tlb_flush_all() on rollover.
+&#160; -Introduced INVALID_VMID and vCPU Sched Out logic.
+&#160; -No CnP (Removed UniqueASIDAllCPUs &#38; UniqueASIDActiveTask invariants).
+&#160; -Removed &#160;UniqueVMIDPerCPU invariant for now as it looks like
+   because of the speculative fetching with flush_tlb_all() there
+   is a small window where this gets triggered. If I change the
+   logic back to local_flush_tlb_all(), UniqueVMIDPerCPU seems to
+   be fine. With my limited knowledge on TLA+ model, it is not
+   clear to me whether this is a problem with the above logic
+   or the VMID model implementation. Really appreciate any help
+   with the model.
+   The initial VMID TLA+ model is here,
+   <a
+href="https://github.com/shamiali2008/kernel-tla/tree/private-vmidalloc-v1">https://github.com/shamiali2008/kernel-tla/tree/private-vmidalloc-v1</a>
+
+Please take a look and let me know.
+
+Thanks,
+Shameer
+
+[0] <a
+href="https://lore.kernel.org/kvmarm/20210721160614.GC11003@willie-the-truck/">https://lore.kernel.org/kvmarm/20210721160614.GC11003@willie-the-truck/</a>
+[1] <a
+href="https://lore.kernel.org/kvmarm/20210803114034.GB30853@willie-the-truck/">https://lore.kernel.org/kvmarm/20210803114034.GB30853@willie-the-truck/</a>
+
+History:
+--------
+v2 --&gt; v3
+  -Dropped adding a new static key and cpufeature for retrieving
+   supported VMID bits. Instead, we now make use of the
+   kvm_arm_vmid_bits variable (patch #2).
+
+  -Since we expect less frequent rollover in the case of VMIDs,
+   the TLB invalidation is now broadcasted on rollover instead
+   of keeping per CPU flush_pending info and issuing a local
+   context flush.
+
+  -Clear active_vmids on vCPU schedule out to avoid unnecessarily
+   reserving the VMID space(patch #3).
+
+  -I have kept the struct kvm_vmid as it is for now(instead of a
+   typedef as suggested), as we may soon add another variable to
+   it when we introduce Pinned KVM VMID support.
+
+RFCv1 --&gt; v2
+   -Dropped &#34;pinned VMID&#34; support for now.
+   -Dropped RFC tag.
+RFCv1
+   <a
+href="https://lore.kernel.org/kvmarm/20210506165232.1969-1-shameerali.kolothum.thodi@huawei.com/">https://lore.kernel.org/kvmarm/20210506165232.1969-1-shameerali.kolothum.thodi@huawei.com/</a>
+
+Julien Grall (1):
+  KVM: arm64: Align the VMID allocation with the arm64 ASID
+
+Shameer Kolothum (3):
+  KVM: arm64: Introduce a new VMID allocator for KVM
+  KVM: arm64: Make VMID bits accessible outside of allocator
+  KVM: arm64: Make active_vmids invalid on vCPU schedule out
+
+ arch/arm64/include/asm/kvm_host.h     |  10 +-
+ arch/arm64/include/asm/kvm_mmu.h      |   4 +-
+ arch/arm64/kernel/image-vars.h        |   3 +
+ arch/arm64/kvm/Makefile               |   2 +-
+ arch/arm64/kvm/arm.c                  | 106 +++-----------
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c |   3 +-
+ arch/arm64/kvm/mmu.c                  |   1 -
+ arch/arm64/kvm/vmid.c                 | 196 ++++++++++++++++++++++++++
+ 8 files changed, 228 insertions(+), 97 deletions(-)
+ create mode 100644 arch/arm64/kvm/vmid.c
+
+-- 
+2.17.1
+
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122122826">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122122826">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122122826">linux-kernel@vger.kernel.org</a>&gt;
+Cc: &lt;maz@kernel.org&gt;, &lt;will@kernel.org&gt;, &lt;catalin.marinas@arm.com&gt;,
+	&lt;james.morse@arm.com&gt;, &lt;julien.thierry.kdev@gmail.com&gt;,
+	&lt;suzuki.poulose@arm.com&gt;, &lt;jean-philippe@linaro.org&gt;,
+	&lt;Alexandru.Elisei@arm.com&gt;, &lt;qperret@google.com&gt;,
+	&lt;jonathan.cameron@huawei.com&gt;, &lt;linuxarm@huawei.com&gt;
+Subject: <a
+href="#r"
+id=t>[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a>
+Date: Mon, 22 Nov 2021 12:18:40 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-1-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+
+Changes from v3:
+- Main change is in patch #4, where the VMID is now set to an
+  invalid one on vCPU schedule out. Introduced an 
+  INVALID_ACTIVE_VMID which is basically a VMID 0 with generation 1.
+&#160; Since the basic allocator algorithm reserves vmid #0, it is never
+  used as an active VMID. This (hopefully) will fix the issue of
+  unnecessarily reserving VMID space with active_vmids when those
+  VMs are no longer active[0] and at the same time address the
+  problem noted in v3 wherein everything ends up in slow-path[1].
+
+Testing:
+&#160;-Run with VMID bit set to 4 and maxcpus to 8 on D06. The test
+  involves running concurrently 50 guests with 4 vCPUs. Each
+  guest will then execute hackbench 5 times before exiting.
+  No crash was observed for a 4-day continuous run.
+&#160; The latest branch is here,
+&#160; &#160;<a
+href="https://github.com/hisilicon/kernel-dev/tree/private-v5.16-rc1-vmid-v4">https://github.com/hisilicon/kernel-dev/tree/private-v5.16-rc1-vmid-v4</a>
+
+&#160;-TLA+ model. Modified the asidalloc model to incorporate the new
+  VMID algo. The main differences are,
+&#160; -flush_tlb_all() instead of local_tlb_flush_all() on rollover.
+&#160; -Introduced INVALID_VMID and vCPU Sched Out logic.
+&#160; -No CnP (Removed UniqueASIDAllCPUs &#38; UniqueASIDActiveTask invariants).
+&#160; -Removed &#160;UniqueVMIDPerCPU invariant for now as it looks like
+   because of the speculative fetching with flush_tlb_all() there
+   is a small window where this gets triggered. If I change the
+   logic back to local_flush_tlb_all(), UniqueVMIDPerCPU seems to
+   be fine. With my limited knowledge on TLA+ model, it is not
+   clear to me whether this is a problem with the above logic
+   or the VMID model implementation. Really appreciate any help
+   with the model.
+   The initial VMID TLA+ model is here,
+   <a
+href="https://github.com/shamiali2008/kernel-tla/tree/private-vmidalloc-v1">https://github.com/shamiali2008/kernel-tla/tree/private-vmidalloc-v1</a>
+
+Please take a look and let me know.
+
+Thanks,
+Shameer
+
+[0] <a
+href="https://lore.kernel.org/kvmarm/20210721160614.GC11003@willie-the-truck/">https://lore.kernel.org/kvmarm/20210721160614.GC11003@willie-the-truck/</a>
+[1] <a
+href="https://lore.kernel.org/kvmarm/20210803114034.GB30853@willie-the-truck/">https://lore.kernel.org/kvmarm/20210803114034.GB30853@willie-the-truck/</a>
+
+History:
+--------
+v2 --&gt; v3
+  -Dropped adding a new static key and cpufeature for retrieving
+   supported VMID bits. Instead, we now make use of the
+   kvm_arm_vmid_bits variable (patch #2).
+
+  -Since we expect less frequent rollover in the case of VMIDs,
+   the TLB invalidation is now broadcasted on rollover instead
+   of keeping per CPU flush_pending info and issuing a local
+   context flush.
+
+  -Clear active_vmids on vCPU schedule out to avoid unnecessarily
+   reserving the VMID space(patch #3).
+
+  -I have kept the struct kvm_vmid as it is for now(instead of a
+   typedef as suggested), as we may soon add another variable to
+   it when we introduce Pinned KVM VMID support.
+
+RFCv1 --&gt; v2
+   -Dropped &#34;pinned VMID&#34; support for now.
+   -Dropped RFC tag.
+RFCv1
+   <a
+href="https://lore.kernel.org/kvmarm/20210506165232.1969-1-shameerali.kolothum.thodi@huawei.com/">https://lore.kernel.org/kvmarm/20210506165232.1969-1-shameerali.kolothum.thodi@huawei.com/</a>
+
+Julien Grall (1):
+  KVM: arm64: Align the VMID allocation with the arm64 ASID
+
+Shameer Kolothum (3):
+  KVM: arm64: Introduce a new VMID allocator for KVM
+  KVM: arm64: Make VMID bits accessible outside of allocator
+  KVM: arm64: Make active_vmids invalid on vCPU schedule out
+
+ arch/arm64/include/asm/kvm_host.h     |  10 +-
+ arch/arm64/include/asm/kvm_mmu.h      |   4 +-
+ arch/arm64/kernel/image-vars.h        |   3 +
+ arch/arm64/kvm/Makefile               |   2 +-
+ arch/arm64/kvm/arm.c                  | 106 +++-----------
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c |   3 +-
+ arch/arm64/kvm/mmu.c                  |   1 -
+ arch/arm64/kvm/vmid.c                 | 196 ++++++++++++++++++++++++++
+ 8 files changed, 228 insertions(+), 97 deletions(-)
+ create mode 100644 arch/arm64/kvm/vmid.c
+
+-- 
+2.17.1
+
+
+_______________________________________________
+linux-arm-kernel mailing list
+linux-arm-kernel@lists.infradead.org
+<a
+href="http://lists.infradead.org/mailman/listinfo/linux-arm-kernel">http://lists.infradead.org/mailman/listinfo/linux-arm-kernel</a>
+</pre><hr><pre>WARNING: multiple messages have this Message-ID (<a
+href="d/">diff</a>)</pre><pre>From: Shameer Kolothum &lt;shameerali.kolothum.thodi@huawei.com&gt;
+To: &lt;<a
+href="../../linux-arm-kernel/?t=20211122121919">linux-arm-kernel@lists.infradead.org</a>&gt;,
+	&lt;<a
+href="../../kvmarm/?t=20211122121919">kvmarm@lists.cs.columbia.edu</a>&gt;, &lt;<a
+href="../../lkml/?t=20211122121919">linux-kernel@vger.kernel.org</a>&gt;
+Cc: jean-philippe@linaro.org, maz@kernel.org, linuxarm@huawei.com,
+	jonathan.cameron@huawei.com, catalin.marinas@arm.com,
+	will@kernel.org
+Subject: <a
+href="#r"
+id=t>[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a>
+Date: Mon, 22 Nov 2021 12:18:40 +0000	<a
+href="#r">[thread overview]</a>
+Message-ID: &lt;20211122121844.867-1-shameerali.kolothum.thodi@huawei.com&gt; (<a href="raw">raw</a>)
+
+Changes from v3:
+- Main change is in patch #4, where the VMID is now set to an
+  invalid one on vCPU schedule out. Introduced an 
+  INVALID_ACTIVE_VMID which is basically a VMID 0 with generation 1.
+&#160; Since the basic allocator algorithm reserves vmid #0, it is never
+  used as an active VMID. This (hopefully) will fix the issue of
+  unnecessarily reserving VMID space with active_vmids when those
+  VMs are no longer active[0] and at the same time address the
+  problem noted in v3 wherein everything ends up in slow-path[1].
+
+Testing:
+&#160;-Run with VMID bit set to 4 and maxcpus to 8 on D06. The test
+  involves running concurrently 50 guests with 4 vCPUs. Each
+  guest will then execute hackbench 5 times before exiting.
+  No crash was observed for a 4-day continuous run.
+&#160; The latest branch is here,
+&#160; &#160;<a
+href="https://github.com/hisilicon/kernel-dev/tree/private-v5.16-rc1-vmid-v4">https://github.com/hisilicon/kernel-dev/tree/private-v5.16-rc1-vmid-v4</a>
+
+&#160;-TLA+ model. Modified the asidalloc model to incorporate the new
+  VMID algo. The main differences are,
+&#160; -flush_tlb_all() instead of local_tlb_flush_all() on rollover.
+&#160; -Introduced INVALID_VMID and vCPU Sched Out logic.
+&#160; -No CnP (Removed UniqueASIDAllCPUs &#38; UniqueASIDActiveTask invariants).
+&#160; -Removed &#160;UniqueVMIDPerCPU invariant for now as it looks like
+   because of the speculative fetching with flush_tlb_all() there
+   is a small window where this gets triggered. If I change the
+   logic back to local_flush_tlb_all(), UniqueVMIDPerCPU seems to
+   be fine. With my limited knowledge on TLA+ model, it is not
+   clear to me whether this is a problem with the above logic
+   or the VMID model implementation. Really appreciate any help
+   with the model.
+   The initial VMID TLA+ model is here,
+   <a
+href="https://github.com/shamiali2008/kernel-tla/tree/private-vmidalloc-v1">https://github.com/shamiali2008/kernel-tla/tree/private-vmidalloc-v1</a>
+
+Please take a look and let me know.
+
+Thanks,
+Shameer
+
+[0] <a
+href="https://lore.kernel.org/kvmarm/20210721160614.GC11003@willie-the-truck/">https://lore.kernel.org/kvmarm/20210721160614.GC11003@willie-the-truck/</a>
+[1] <a
+href="https://lore.kernel.org/kvmarm/20210803114034.GB30853@willie-the-truck/">https://lore.kernel.org/kvmarm/20210803114034.GB30853@willie-the-truck/</a>
+
+History:
+--------
+v2 --&gt; v3
+  -Dropped adding a new static key and cpufeature for retrieving
+   supported VMID bits. Instead, we now make use of the
+   kvm_arm_vmid_bits variable (patch #2).
+
+  -Since we expect less frequent rollover in the case of VMIDs,
+   the TLB invalidation is now broadcasted on rollover instead
+   of keeping per CPU flush_pending info and issuing a local
+   context flush.
+
+  -Clear active_vmids on vCPU schedule out to avoid unnecessarily
+   reserving the VMID space(patch #3).
+
+  -I have kept the struct kvm_vmid as it is for now(instead of a
+   typedef as suggested), as we may soon add another variable to
+   it when we introduce Pinned KVM VMID support.
+
+RFCv1 --&gt; v2
+   -Dropped &#34;pinned VMID&#34; support for now.
+   -Dropped RFC tag.
+RFCv1
+   <a
+href="https://lore.kernel.org/kvmarm/20210506165232.1969-1-shameerali.kolothum.thodi@huawei.com/">https://lore.kernel.org/kvmarm/20210506165232.1969-1-shameerali.kolothum.thodi@huawei.com/</a>
+
+Julien Grall (1):
+  KVM: arm64: Align the VMID allocation with the arm64 ASID
+
+Shameer Kolothum (3):
+  KVM: arm64: Introduce a new VMID allocator for KVM
+  KVM: arm64: Make VMID bits accessible outside of allocator
+  KVM: arm64: Make active_vmids invalid on vCPU schedule out
+
+ arch/arm64/include/asm/kvm_host.h     |  10 +-
+ arch/arm64/include/asm/kvm_mmu.h      |   4 +-
+ arch/arm64/kernel/image-vars.h        |   3 +
+ arch/arm64/kvm/Makefile               |   2 +-
+ arch/arm64/kvm/arm.c                  | 106 +++-----------
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c |   3 +-
+ arch/arm64/kvm/mmu.c                  |   1 -
+ arch/arm64/kvm/vmid.c                 | 196 ++++++++++++++++++++++++++
+ 8 files changed, 228 insertions(+), 97 deletions(-)
+ create mode 100644 arch/arm64/kvm/vmid.c
+
+-- 
+2.17.1
+
+_______________________________________________
+kvmarm mailing list
+kvmarm@lists.cs.columbia.edu
+<a
+href="https://lists.cs.columbia.edu/mailman/listinfo/kvmarm">https://lists.cs.columbia.edu/mailman/listinfo/kvmarm</a>
+</pre><hr><pre><a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/"
+rel=next>next</a>             <a
+href="#R">reply</a><a id=related>	</a>other threads:[<a
+href="../?t=20211122121917">~2021-11-22 12:19 UTC</a>|<a
+href="../">newest</a>]
+
+<b>Thread overview: </b>39+ messages / expand[<a
+href="T/#u">flat</a>|<a
+href="t/#u">nested</a>]  <a
+href="t.mbox.gz">mbox.gz</a>  <a
+href="t.atom">Atom feed</a>  <a
+href="#b">top</a>
+<b>2021-11-22 12:18 <a
+id=r
+href="#t">Shameer Kolothum [this message]</a></b>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameer Kolothum
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-1-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 1/4] KVM: arm64: Introduce a new VMID allocator for KVM</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-2-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-21  7:35   ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  7:35     ` <a
+href="../CAAeT=FwWNZ7O=oxGB5d0Pp2jVZVs71nCAGJTp9_+6fhuOK+dKw@mail.gmail.com/">Reiji Watanabe</a>
+2022-01-21  8:44     ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-21  8:44       ` <a
+href="../1bca6f5f13424601b431f72a1b1f2319@huawei.com/">Shameerali Kolothum Thodi</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 2/4] KVM: arm64: Make VMID bits accessible outside of allocator</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-3-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 3/4] KVM: arm64: Align the VMID allocation with the arm64 ASID</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-4-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18 ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">[PATCH v4 4/4] KVM: arm64: Make active_vmids invalid on vCPU schedule out</a> Shameer Kolothum
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2021-11-22 12:18   ` <a
+href="../20211122121844.867-5-shameerali.kolothum.thodi@huawei.com/">Shameer Kolothum</a>
+2022-01-05 13:25 ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">[PATCH v4 0/4] kvm/arm: New VMID allocator based on asid</a> Shameerali Kolothum Thodi
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-05 13:25   ` <a
+href="../d82034bb5c954de692a02bd13ccbf5d8@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-18 12:32 ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-18 12:32   ` <a
+href="../Yeazd1lLuYm4k3lH@arm.com/">Catalin Marinas</a>
+2022-01-19  9:23   ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19  9:23     ` <a
+href="../207f800d1a67427a9771ffb06086365b@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 11:49     ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 11:49       ` <a
+href="../Yef65ng6pQK5yZDa@arm.com/">Catalin Marinas</a>
+2022-01-19 12:30       ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-01-19 12:30         ` <a
+href="../ab7dc77ee8804f1e958c18cc4dac4a65@huawei.com/">Shameerali Kolothum Thodi</a>
+2022-02-08 17:37 ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+2022-02-08 17:37   ` <a
+href="../164434147328.3931943.1270605694385749340.b4-ty@kernel.org/">Marc Zyngier</a>
+</pre><hr><pre
+id=R><b>Reply instructions:</b>
+
+You may reply publicly to <a
+href=#t>this message</a> via plain-text email
+using any one of the following methods:
+
+* Save the following mbox file, import it into your mail client,
+  and reply-to-all from there: <a
+href=raw>mbox</a>
+
+  Avoid top-posting and favor interleaved quoting:
+  <a
+href="https://en.wikipedia.org/wiki/Posting_style#Interleaved_style">https://en.wikipedia.org/wiki/Posting_style#Interleaved_style</a>
+
+* Reply using the <b>--to</b>, <b>--cc</b>, and <b>--in-reply-to</b>
+  switches of git-send-email(1):
+
+  git send-email \
+    --in-reply-to=20211122121844.867-1-shameerali.kolothum.thodi@huawei.com \
+    --to=shameerali.kolothum.thodi@huawei.com \
+    --cc=Alexandru.Elisei@arm.com \
+    --cc=catalin.marinas@arm.com \
+    --cc=james.morse@arm.com \
+    --cc=jean-philippe@linaro.org \
+    --cc=jonathan.cameron@huawei.com \
+    --cc=julien.thierry.kdev@gmail.com \
+    --cc=kvmarm@lists.cs.columbia.edu \
+    --cc=linux-arm-kernel@lists.infradead.org \
+    --cc=linux-kernel@vger.kernel.org \
+    --cc=linuxarm@huawei.com \
+    --cc=maz@kernel.org \
+    --cc=qperret@google.com \
+    --cc=suzuki.poulose@arm.com \
+    --cc=will@kernel.org \
+    /path/to/YOUR_REPLY
+
+  <a
+href="https://kernel.org/pub/software/scm/git/docs/git-send-email.html">https://kernel.org/pub/software/scm/git/docs/git-send-email.html</a>
+
+* If your mail client supports setting the <b>In-Reply-To</b> header
+  via mailto: links, try the <a
+href="mailto:shameerali.kolothum.thodi@huawei.com?In-Reply-To=%3C20211122121844.867-1-shameerali.kolothum.thodi@huawei.com%3E&#38;Cc=Alexandru.Elisei%40arm.com%2Ccatalin.marinas%40arm.com%2Cjames.morse%40arm.com%2Cjean-philippe%40linaro.org%2Cjonathan.cameron%40huawei.com%2Cjulien.thierry.kdev%40gmail.com%2Ckvmarm%40lists.cs.columbia.edu%2Clinux-arm-kernel%40lists.infradead.org%2Clinux-kernel%40vger.kernel.org%2Clinuxarm%40huawei.com%2Cmaz%40kernel.org%2Cqperret%40google.com%2Csuzuki.poulose%40arm.com%2Cwill%40kernel.org&#38;Subject=Re%3A%20%5BPATCH%20v4%200%2F4%5D%20kvm%2Farm%3A%20New%20VMID%20allocator%20based%20on%20asid">mailto: link</a>
+</pre>
+
+  Be sure your reply has a <b>Subject:</b> header at the top and a blank line
+  before the message body.
+<hr><pre>This is an external index of several public inboxes,
+see <a href="../_/text/mirror/">mirroring instructions</a> on how to clone and mirror
+all data and code used by this external index.</pre></body></html>
