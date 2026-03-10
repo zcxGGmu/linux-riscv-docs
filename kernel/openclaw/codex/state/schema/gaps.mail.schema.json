@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state/schema/gaps.mail.schema.json",
+  "title": "Mailing List Gap Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "source", "items"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["kvm", "kvm-riscv", "linux-riscv"]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "thread_url",
+          "message_id",
+          "subject",
+          "participants",
+          "status",
+          "signals"
+        ],
+        "properties": {
+          "thread_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "message_id": { "type": "string" },
+          "subject": { "type": "string" },
+          "participants": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["discussion", "rfc", "patch-posted", "merged-elsewhere", "stalled", "unknown"]
+          },
+          "mentions_gap_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "signals": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "summary": { "type": "string" },
+          "last_activity_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "discovered_by": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+mapping:
+  RV-KVM-NESTED-001: 1
+  RV-KVM-IOMMU-AIA-002: 2
+  RV-KVM-PMU-SEM-003: 3

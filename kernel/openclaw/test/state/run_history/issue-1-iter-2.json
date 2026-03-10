@@ -1,0 +1,34 @@
+{
+  "issue": 1,
+  "gap_id": "RV-KVM-NESTED-001",
+  "iteration": 2,
+  "status": "partial",
+  "timestamp": "2026-03-10T09:31:00Z",
+  "changes": [
+    {"file": "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/nested.c", "summary": "新增 nested VM/VCPU 最小状态骨架与 init/reset/deinit API"},
+    {"file": "/home/zq/work-space/repo/patch-work/linux/arch/riscv/include/asm/kvm_host.h", "summary": "新增 nested 状态结构体与函数声明，挂入 kvm->arch / vcpu->arch"},
+    {"file": "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/vm.c", "summary": "接入 nested_vm_init/deinit 生命周期"},
+    {"file": "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/vcpu.c", "summary": "接入 nested_vcpu_init/reset/deinit 生命周期"},
+    {"file": "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/Makefile", "summary": "编译目标加入 nested.o"}
+  ],
+  "implemented": [
+    "建立 VM 级 nested scaffold：enabled/flags",
+    "建立 VCPU 级 nested scaffold：active/hgatp/hstatus",
+    "将 nested scaffold 挂到 VM/VCPU 初始化、重置、销毁路径"
+  ],
+  "not_done": [
+    "L2 guest 实际执行路径",
+    "nested trap/exit 分发",
+    "HFENCE_VVMA/HFENCE_VVMA_ASID nested 语义与验证",
+    "用户态 capability/feature gate"
+  ],
+  "build_check": {
+    "command": "make ARCH=riscv M=arch/riscv/kvm -j4",
+    "result": "failed",
+    "reason": "kernel tree 未 prepare（缺 include/generated/autoconf.h 等）"
+  },
+  "risks": [
+    "当前仅为骨架，不提供可用 nested 功能",
+    "未经过可编译环境与运行时测试"
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state/schema/gap_backlog.schema.json",
+  "title": "Normalized Gap Backlog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "items"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gap_id",
+          "problem_statement",
+          "gap_type",
+          "subsystem",
+          "severity",
+          "confidence",
+          "evidence",
+          "proposed_issue_title",
+          "state"
+        ],
+        "properties": {
+          "gap_id": { "type": "string" },
+          "problem_statement": { "type": "string" },
+          "gap_type": {
+            "type": "string",
+            "enum": ["feature", "test", "performance", "stability", "tooling"]
+          },
+          "subsystem": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["P0", "P1", "P2"]
+          },
+          "novelty": {
+            "type": "string",
+            "enum": ["new", "known", "duplicate-risk", "unclear"]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reproducibility": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["reproducible", "needs-env", "needs-hardware", "unknown"]
+              },
+              "script": { "type": "string" },
+              "environment": { "type": "string" }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repo_ids", "thread_ids"],
+            "properties": {
+              "repo_ids": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "thread_ids": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "benchmark_refs": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "notes": { "type": "string" }
+            }
+          },
+          "proposed_issue_title": { "type": "string" },
+          "suggested_labels": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "needs_hardware_lab": { "type": "boolean" },
+          "state": {
+            "type": "string",
+            "enum": [
+              "discovered",
+              "reviewed",
+              "issued",
+              "claimed",
+              "planned",
+              "in_progress",
+              "needs_fix",
+              "ready_to_send",
+              "sent",
+              "revision_needed",
+              "closed"
+            ]
+          },
+          "github": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "issue_number": { "type": "integer", "minimum": 1 },
+              "issue_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "assignee": { "type": "string" }
+            }
+          },
+          "planner": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "plan_path": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": ["pending", "approved", "rework"]
+              }
+            }
+          },
+          "implementation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "branch": { "type": "string" },
+              "worktree": { "type": "string" },
+              "commit_shas": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "verification_report": { "type": "string" }
+            }
+          },
+          "patch": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "series_path": { "type": "string" },
+              "message_id": { "type": "string" },
+              "thread_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "sent": { "type": "boolean" }
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

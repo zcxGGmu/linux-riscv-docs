@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state/schema/verification.schema.json",
+  "title": "Verification Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "issue_id",
+    "branch",
+    "build_pass",
+    "unit_pass",
+    "kselftest_pass",
+    "perf_within_threshold",
+    "artifacts",
+    "blocking_findings",
+    "verified_at"
+  ],
+  "properties": {
+    "issue_id": { "type": "string" },
+    "branch": { "type": "string" },
+    "commit_sha": { "type": "string" },
+    "build_pass": { "type": "boolean" },
+    "unit_pass": { "type": "boolean" },
+    "kselftest_pass": { "type": "boolean" },
+    "checkpatch_pass": { "type": "boolean" },
+    "perf_within_threshold": { "type": "boolean" },
+    "perf_delta_pct": { "type": "number" },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reports": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "patches": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["logs"]
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "summary"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["blocker", "warning"]
+          },
+          "command": { "type": "string" },
+          "expected": { "type": "string" },
+          "actual": { "type": "string" },
+          "summary": { "type": "string" },
+          "evidence_path": { "type": "string" }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verified_by": { "type": "string" },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "issue": 1,
+  "gap_id": "RV-KVM-NESTED-001",
+  "iteration": 1,
+  "status": "partial",
+  "timestamp": "2026-03-10T09:20:00Z",
+  "changes": [
+    {
+      "file": "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/vcpu_sbi_replace.c",
+      "summary": "实现 HFENCE_GVMA/HFENCE_GVMA_VMID 的 KVM 转发路径，保留 VVMA 系列为 NOT_SUPPORTED"
+    }
+  ],
+  "implemented": [
+    "SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA -> kvm_riscv_hfence_gvma_vmid_all/gpa",
+    "SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA_VMID -> cp->a4 vmid 路径",
+    "补充对应 PMU fw 事件计数：HFENCE_GVMA_SENT / HFENCE_GVMA_VMID_SENT"
+  ],
+  "not_done": [
+    "完整 nested virtualization VM/vCPU 状态机与新结构体",
+    "L2 guest run/exit 路径",
+    "HFENCE_VVMA/HFENCE_VVMA_ASID nested 语义实现"
+  ],
+  "build_check": {
+    "command": "make ARCH=riscv M=arch/riscv/kvm -j4",
+    "result": "failed",
+    "reason": "kernel tree 未 prepare（缺少 include/generated/autoconf.h 等）"
+  },
+  "risks": [
+    "当前仅补齐 GVMA 类调用，nested 功能仍非完整可用",
+    "未经过真实 kselftest/kvm-unit-tests 验证"
+  ]
+}

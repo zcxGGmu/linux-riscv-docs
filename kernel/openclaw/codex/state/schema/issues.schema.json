@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state/schema/issues.schema.json",
+  "title": "Created Issue Records",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "repo", "items"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repo": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gap_id",
+          "issue_number",
+          "issue_url",
+          "title",
+          "labels",
+          "body_hash",
+          "created_at"
+        ],
+        "properties": {
+          "gap_id": { "type": "string" },
+          "issue_number": { "type": "integer", "minimum": 1 },
+          "issue_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": { "type": "string" },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "body_hash": { "type": "string" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": { "type": "string" }
+        }
+      }
+    }
+  }
+}

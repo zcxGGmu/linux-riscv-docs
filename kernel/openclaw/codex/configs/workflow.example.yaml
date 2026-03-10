@@ -1,0 +1,143 @@
+workflow:
+  name: riscv-gap-pipeline
+  workspace_root: /workspace/riscv-gap
+  state_dir: state
+  plans_dir: plans
+  reports_dir: reports
+  template_dir: templates
+  prompt_dir: prompts
+  schema_dir: state/schema
+  max_parallel_agents: 6
+  max_parallel_issues: 3
+  retry_limit: 2
+
+repositories:
+  linux:
+    url: git@github.com:torvalds/linux.git
+    local_path: /workspace/src/linux
+    branch: master
+    compare_arches:
+      - riscv
+      - arm64
+      - x86
+    focus_paths:
+      - arch/riscv
+      - arch/arm64
+      - arch/x86
+      - virt/kvm
+      - tools/testing/selftests/kvm
+      - include/uapi/linux
+  docs:
+    url: git@github.com:zcxGGmu/linux-riscv-docs.git
+    local_path: /workspace/src/linux-riscv-docs
+    default_branch: main
+
+mail_sources:
+  - name: kvm
+    archive_url: https://yhbt.net/lore/kvm/
+    keywords:
+      - riscv
+      - arm64
+      - x86
+      - kvm
+      - perf
+      - regression
+    lookback_days: 540
+  - name: kvm-riscv
+    archive_url: https://yhbt.net/lore/kvm-riscv/
+    keywords:
+      - riscv
+      - guest
+      - host
+      - selftest
+      - acceleration
+    lookback_days: 540
+
+agents:
+  orchestrator:
+    runtime: openclaw
+    model: gpt-5
+    approval_mode: gated
+  repo_scanner:
+    runtime: openclaw
+    model: gpt-5-mini
+  mailing_list_miner:
+    runtime: openclaw
+    model: gpt-5-mini
+  gap_normalizer:
+    runtime: openclaw
+    model: gpt-5-mini
+  issue_author:
+    runtime: openclaw
+    model: gpt-5-mini
+    issue_template_path: templates/issue-template.md
+  planner:
+    runtime: claude-code
+    model: claude-opus-4.1
+    prompt_path: prompts/claude-planner-prompt.md
+    plan_template_path: templates/design-template.md
+    output_template:
+      - problem_statement
+      - options
+      - files_to_touch
+      - test_matrix
+      - risks
+      - rollback
+      - definition_of_done
+  implementer:
+    runtime: codex
+    model: gpt-5-codex
+    prompt_path: prompts/codex-implementer-prompt.md
+  verifier:
+    runtime: codex
+    model: gpt-5-codex-mini
+    prompt_path: prompts/codex-verifier-prompt.md
+    schema_path: state/schema/verification.schema.json
+  patch_publisher:
+    runtime: openclaw
+    model: gpt-5-mini
+
+gates:
+  gap_review:
+    required: true
+  issue_publish:
+    required: true
+  plan_approval:
+    required: true
+  pre_send:
+    required: true
+
+thresholds:
+  gap_confidence_threshold: 0.68
+  issue_creation_threshold: 0.72
+  dedup_similarity_threshold: 0.85
+  perf_regression_threshold_pct: 3.0
+
+commands:
+  sync_linux: git -C /workspace/src/linux fetch --all --prune
+  sync_docs: git -C /workspace/src/linux-riscv-docs fetch --all --prune
+  create_issue: gh issue create --repo zcxGGmu/linux-riscv-docs
+  assign_issue: gh issue edit --repo zcxGGmu/linux-riscv-docs
+  build_riscv:
+    - make ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- defconfig
+    - make -j$(nproc) ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu-
+  kvm_selftests:
+    - make -C tools/testing/selftests/kvm
+    - make -C tools/testing/selftests/kvm run_tests
+  patch_check:
+    - scripts/checkpatch.pl --strict --codespell
+    - b4 prep --auto-to-cc
+    - b4 prep --check
+  format_patch: git format-patch --base=auto --cover-letter -o out/patches origin/master..
+  send_patch: b4 send
+
+email:
+  from_email: dev@example.com
+  smtp_server: smtp.example.com
+  smtp_user: dev@example.com
+  sendemail_identity: default
+  subject_prefix: "[PATCH v1]"
+  to_lists:
+    - kvm@vger.kernel.org
+    - linux-riscv@lists.infradead.org
+  cc_rules_path: configs/cc-rules.yaml

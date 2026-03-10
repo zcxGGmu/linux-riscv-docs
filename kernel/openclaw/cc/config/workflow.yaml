@@ -1,0 +1,172 @@
+# RISC-V vs ARM/x86 Linux内核差距分析工作流配置
+# Version: 1.0
+# Created: 2026-03-10
+
+workflow:
+  name: riscv-kvm-gap-analysis
+  version: "1.0"
+  description: 多Agent工作流，自动分析RISC-V与ARM/x86在Linux内核支持上的差距
+
+# Agent配置
+agents:
+  claude_code:
+    model: sonnet
+    max_iterations: 100
+    temperature: 0.7
+
+  explorer:
+    model: haiku
+    max_iterations: 50
+    description: 探索Agent，用于代码仓库和文档分析
+
+  codex:
+    model: sonnet
+    auto_commit: false
+    description: 代码编写Agent
+
+  code_review:
+    model: sonnet
+    description: 代码审查Agent
+
+# GitHub配置
+github:
+  repo: zcxGGmu/linux-riscv-docs
+  owner: zcxGGmu
+  default_branch: main
+  api_url: https://api.github.com
+
+# Linux内核仓库配置
+linux_repo:
+  path: ~/linux
+  remote: https://github.com/torvalds/linux.git
+  riscv_path: arch/riscv
+  arm_path: arch/arm
+  x86_path: arch/x86
+
+# KVM邮件列表配置
+kvm_list:
+  archive_url: https://yhbt.net/lore/kvm/
+  subscribe: kvm@vger.kernel.org
+
+risc_v_list:
+  archive_url: https://lists.infradead.org/pipermail/linux-riscv/
+  subscribe: linux-riscv@lists.infradead.org
+
+# 邮件配置
+email:
+  smtp_server: ""
+  smtp_port: 587
+  from_name: RISC-V Kernel Developer
+  from_email: dev@riscv-kvm.org
+  use_sendmail: true
+
+# 检查点配置 - 人类审核节点
+checkpoints:
+  - name: gap-analysis-complete
+    human_approval: true
+    description: 差距分析完成，需要人类审核
+
+  - name: issues-created
+    human_approval: true
+    description: Issue创建完成，需要确认
+
+  - name: development-plan-approved
+    human_approval: true
+    description: 开发方案已批准
+
+  - name: code-ready-for-review
+    human_approval: true
+    description: 代码准备好审查
+
+  - name: patch-ready-to-send
+    human_approval: true
+    description: Patch准备好发送
+
+# 差距优先级定义
+priorities:
+  P0:
+    label: priority/P0
+    description: 关键性能/安全
+    examples:
+      - KVM基础支持
+      - 内存管理
+      - 安全虚拟化
+
+  P1:
+    label: priority/P1
+    description: 重要功能
+    examples:
+      - 高级中断支持
+      - 调试支持
+      - 性能优化
+
+  P2:
+    label: priority/P2
+    description: 优化改进
+    examples:
+      - 工具链优化
+      - 调优参数
+
+  P3:
+    label: priority/P3
+    description: 未来特性
+    examples:
+      - 新兴架构特性
+
+# 分析维度配置
+analysis_dimensions:
+  - name: kvm_support
+    description: KVM虚拟化支持差异
+    paths:
+      - arch/arm/kvm
+      - arch/riscv/kvm
+      - arch/x86/kvm
+
+  - name: processor_features
+    description: 处理器特性支持
+    items:
+      - SVE/SME (ARM)
+      - RISC-V Vector
+      - PMU事件
+      - 调试机制
+
+  - name: virtualization_features
+    description: 虚拟化特性
+    items:
+      - 嵌套虚拟化
+      - 内存管理 (EPT vs Sv39/Sv48/Sv57)
+      - 中断控制器 (GIC vs AIA)
+
+  - name: performance
+    description: 性能特性
+    items:
+      - TLB shootdown
+      - IPI效率
+      - 调度器优化
+
+# Issue模板
+issue_templates:
+  feature_gap:
+    title: "[RISC-V Feature Gap] {feature_name}"
+    labels:
+      - riscv
+      - feature-gap
+      - {priority}
+    body: |
+      ## 描述
+      {description}
+
+      ## ARM/x86现状
+      {arm_x86_status}
+
+      ## RISC-V当前状态
+      {riscv_status}
+
+      ## 影响分析
+      {impact_analysis}
+
+      ## 优先级
+      {priority}
+
+      ## 相关资源
+      {related_resources}

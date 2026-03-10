@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state/schema/claimed.schema.json",
+  "title": "Claimed Issue Records",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "repo", "items"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repo": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gap_id",
+          "issue_number",
+          "issue_url",
+          "assignee",
+          "status_label",
+          "claimed_at"
+        ],
+        "properties": {
+          "gap_id": { "type": "string" },
+          "issue_number": { "type": "integer", "minimum": 1 },
+          "issue_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "assignee": { "type": "string" },
+          "claimed_by_agent": { "type": "string" },
+          "status_label": { "type": "string" },
+          "comment_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "branch_name": { "type": "string" },
+          "claimed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

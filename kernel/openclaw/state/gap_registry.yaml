@@ -1,0 +1,49 @@
+gaps:
+  - gap_id: RV-KVM-NESTED-001
+    type: feature
+    summary: "RISC-V KVM 缺少与 ARM64/x86 对齐的完整嵌套虚拟化能力（L2 guest execution 路径未完整实现）"
+    evidence:
+      code_paths:
+        - "/home/zq/work-space/repo/patch-work/linux/arch/arm64/kvm/nested.c"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/x86/kvm/vmx/nested.c"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/x86/kvm/svm/nested.c"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/vcpu_sbi_replace.c#L130"
+      notes:
+        - "riscv 路径包含 'Until nested virtualization is implemented' 注释，显示功能尚未闭环"
+      lore_urls:
+        - "https://yhbt.net/lore/kvm/?q=riscv+nested"
+    severity: P0
+    confidence: high
+    acceptance_hint: "具备可验证的 nested guest 运行能力，最小通过 kvm-unit-tests nested 场景并补充自测脚本"
+
+  - gap_id: RV-KVM-IOMMU-AIA-002
+    type: maintainability
+    summary: "RISC-V KVM AIA IMSIC 路径存在 IOMMU 映射 TODO，占位逻辑未收敛，影响中断虚拟化稳定性"
+    evidence:
+      code_paths:
+        - "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/aia_imsic.c#L764"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/aia_imsic.c#L855"
+      notes:
+        - "代码中明确 TODO: Purge/Update the IOMMU mapping"
+      lore_urls:
+        - "https://yhbt.net/lore/kvm/?q=riscv+imsic+iommu"
+    severity: P1
+    confidence: high
+    acceptance_hint: "清理 TODO，补全 IMSIC-IOMMU 映射生命周期管理，并增加回归测试"
+
+  - gap_id: RV-KVM-PMU-SEM-003
+    type: performance
+    summary: "RISC-V KVM PMU 虚拟化语义存在未决 TODO，和 ARM64/x86 PMU 虚拟化成熟度仍有差距"
+    evidence:
+      code_paths:
+        - "/home/zq/work-space/repo/patch-work/linux/arch/arm64/kvm/pmu-emul.c"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/x86/kvm/pmu.c"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/vcpu_pmu.c#L299"
+        - "/home/zq/work-space/repo/patch-work/linux/arch/riscv/kvm/vcpu_pmu.c#L322"
+      notes:
+        - "riscv PMU 路径出现 TODO，涉及 counter 语义与硬件计数行为"
+      lore_urls:
+        - "https://yhbt.net/lore/kvm/?q=riscv+pmu+kvm"
+    severity: P1
+    confidence: medium
+    acceptance_hint: "明确 PMU 事件语义，补齐文档与 kselftest/perf 验证用例"

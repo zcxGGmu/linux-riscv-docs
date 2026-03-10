@@ -1,0 +1,41 @@
+project:
+  linux_repo: /home/zq/work-space/repo/patch-work/linux
+  docs_repo: /home/zq/work-space/repo/ai-projs/linux-riscv-docs
+  kvm_lore_url: https://yhbt.net/lore/kvm/
+
+output:
+  root: /home/zq/work-space/repo/ai-projs/linux-riscv-docs/kernel/openclaw/test
+  state_dir: /home/zq/work-space/repo/ai-projs/linux-riscv-docs/kernel/openclaw/test/state
+  plans_dir: /home/zq/work-space/repo/ai-projs/linux-riscv-docs/kernel/openclaw/test/plans
+  logs_dir: /home/zq/work-space/repo/ai-projs/linux-riscv-docs/kernel/openclaw/test/logs
+  patches_dir: /home/zq/work-space/repo/ai-projs/linux-riscv-docs/kernel/openclaw/test/patches
+
+agents:
+  planner:
+    runtime: acp
+    agentId: claude-code
+    model: hanbbq/gpt-5.3-codex
+  implementer:
+    runtime: acp
+    agentId: codex
+    model: hanbbq/gpt-5.3-codex
+
+policy:
+  max_parallel_issues: 3
+  max_fix_iterations: 8
+  require_human_gate:
+    - gate_gap_triage
+    - gate_plan_review
+    - gate_patch_send
+
+issue:
+  repo: zcxGGmu/linux-riscv-docs
+  assignee: zcxGGmu
+  labels_default: ["riscv", "kvm-gap"]
+
+mailing:
+  target_lists:
+    - kvm@vger.kernel.org
+    - linux-riscv@lists.infradead.org
+  dry_run: true
+  use_b4: true

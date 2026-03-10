@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state/schema/gaps.repo.schema.json",
+  "title": "Repository Gap Scan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "source", "compare_arches", "items"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "const": "linux.git"
+    },
+    "compare_arches": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "subsystem",
+          "evidence_type",
+          "riscv_state",
+          "arm64_state",
+          "x86_state",
+          "files",
+          "confidence"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "subsystem": { "type": "string" },
+          "evidence_type": {
+            "type": "string",
+            "enum": ["feature", "test", "performance", "stability", "tooling"]
+          },
+          "riscv_state": { "type": "string" },
+          "arm64_state": { "type": "string" },
+          "x86_state": { "type": "string" },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "symbols": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "notes": { "type": "string" },
+          "discovered_by": { "type": "string" },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
