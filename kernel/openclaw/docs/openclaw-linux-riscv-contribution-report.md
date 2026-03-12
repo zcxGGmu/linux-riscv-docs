@@ -19,6 +19,27 @@
 | Codex | 实现、构建、测试、修补、迭代收敛 | 适合 issue 驱动的代码执行 | 对硬件/架构隐含知识依赖仍高 |
 | 人类 | 监督、筛选信息、审批关键步骤 | 降低误判和错误上游提交风险 | 仍需要投入较多时间 |
 
+如果把这套方案从“表格描述”转换成“系统视角”，其协作关系大致如下：
+
+**角色协作图**
+
+```mermaid
+flowchart LR
+    H[人类监督者]
+    O[OpenClaw 控制中枢]
+    C[Claude Code<br/>方案规划者]
+    X[Codex<br/>代码开发者]
+    A[工件沉淀<br/>plans / logs / patches]
+
+    O -->|调度与状态编排| C
+    O -->|实现任务与验证| X
+    C -->|方案、测试矩阵、上游策略| A
+    X -->|代码、构建、测试、补丁| A
+    C -->|计划交接| X
+    H -->|Gate 审批 / 纠偏| O
+    O -->|阶段结果 / 待决事项| H
+```
+
 ### 2. 当前可做到的事情
 
 - 把 `discover -> issue -> plan -> implement -> patch` 组织成一条显式流水线。
@@ -61,11 +82,62 @@
 5. 用 Codex 迭代执行“实现 -> 构建 -> 测试 -> 修补”，结果写入 run history。
 6. 最后生成 `format-patch`、`checkpatch`、建议收件人列表和 cover letter 草案，并在 Gate-3 审核。
 
+如果把上面 6 步压缩成一张流程图，可以更直观看到它为什么适合作为半自动贡献流水线：
+
+**贡献流水线图**
+
+```mermaid
+flowchart TB
+    B[Bootstrap 工作区]
+    D[Discover<br/>RISC-V gap 发现]
+    G1{Gate-1<br/>人工确认 gap 有效}
+    I[Issue<br/>创建或同步 GitHub issue]
+    P[Plan<br/>Claude Code 生成设计与测试矩阵]
+    G2{Gate-2<br/>人工审核方案}
+    M[Implement<br/>Codex 实现 / 构建 / 测试]
+    F[Fix Loop<br/>失败后修补再测]
+    T[Patch<br/>format-patch / checkpatch / cover letter]
+    G3{Gate-3<br/>人工审核发信材料}
+    E[进入上游提交流程]
+
+    B --> D --> G1
+    G1 -->|通过| I --> P --> G2
+    G1 -->|驳回| D
+    G2 -->|通过| M --> T --> G3
+    G2 -->|驳回| P
+    M -->|失败| F --> M
+    G3 -->|通过| E
+    G3 -->|驳回| T
+```
+
 这个 skill 的价值，不在于“让 AI 直接提交 Linux 内核补丁”，而在于它把最容易失控的地方强制制度化了：
 
 - 人类只需要在 3 个闸门介入，而不是全程盯着每一步。
 - 每个阶段都有明确工件输出，而不是只停留在聊天记录里。
 - 规划与实现明确拆给不同 agent，减少“同一个模型既当裁判又当运动员”的问题。
+
+它的另一个核心价值，是把聊天过程外置为文件工件，便于复盘、审计和跨阶段接力：
+
+**工件流转图**
+
+```mermaid
+flowchart LR
+    W[workflow.yaml]
+    G[gap_registry.yaml]
+    IM[issue_map.yaml]
+    PL[plans/]
+    RH[run_history/]
+    LG[logs/]
+    PT[patches/]
+
+    W --> G
+    G --> IM
+    IM --> PL
+    PL --> RH
+    RH --> LG
+    RH --> PT
+    PT --> LG
+```
 
 换句话说，`linux-riscv-contribute` 已经具备“把内核贡献变成运维化流水线”的雏形。它最适合当前阶段的用途不是全自动上游提交，而是先作为“问题发现、方案成文、实现收敛、补丁打包”的半自动系统。
 
