@@ -1,19 +1,20 @@
-# 任务计划（2026-04-03）
+- [x] Review project lessons state
+- [x] Locate the target message content from the provided link
+- [x] Create an English Markdown document in the current directory
+- [x] Verify the generated file content and path
 
-## 目标
-- 将 `https://lists.riscv.org/g/sig-datacenter/message/204` 的正文翻译为中文，并在当前目录生成 Markdown 文档。
+## Review
 
-## 执行清单
-- [x] 获取页面并确认可访问正文（处理反爬挑战后抓取到完整 HTML）
-- [x] 从页面中提取 message #204 的正文内容（含公式/图片/引用链接）
-- [x] 将英文正文完整翻译为中文，保留技术术语与公式
-- [x] 在当前目录写入中文 Markdown 文档
-- [x] 自检文档完整性（标题、段落、公式、引用、落款）
+- The provided expanded messages link contains the original Sssscnt proposal as message 204.
+- The source content is already in English, so the deliverable is a cleaned Markdown transcription of the original message.
 
-## 实现前 Check-in
-- 已确认方案：先提取原文再翻译，避免遗漏字段；图片公式链接保留为原链接。
+## Follow-up Task
 
-## Review（完成后填写）
-- 状态：已完成
-- 结果：已在当前目录生成 `message-204-zh.md`，包含中文译文、公式、图片链接、参考文献与落款。
-- 备注：原站点存在反爬挑战，已通过抓取完整 HTML 并提取正文后完成翻译。
+- [x] Review lessons and the Sssscnt source document
+- [x] Draft discussion questions for the Sssscnt proposal
+- [x] Create a separate Markdown document for the questions
+- [x] Verify the generated questions document
+
+## Follow-up Review
+
+- The question list focuses on review-worthy topics: semantics, implementation boundary, virtualization, Linux integration, alternatives, and validation.
