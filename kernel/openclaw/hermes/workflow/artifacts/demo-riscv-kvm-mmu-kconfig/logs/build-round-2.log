@@ -1,0 +1,9 @@
+[demo] make ARCH=riscv allnoconfig
+Kconfig processing complete
+
+[demo] make ARCH=riscv olddefconfig
+Configuration written to .config
+
+[demo] make ARCH=riscv defconfig
+Configuration written to .config
+No simulated build/config failures after help text update

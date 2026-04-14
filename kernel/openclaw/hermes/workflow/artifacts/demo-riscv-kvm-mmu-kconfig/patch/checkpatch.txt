@@ -1,0 +1,4 @@
+total: 0 errors, 0 warnings, 0 checks
+
+[demo note]
+This is a simulated checkpatch result for a documentation/Kconfig-only one-patch series.

@@ -1,0 +1,9 @@
+[demo] make ARCH=riscv olddefconfig
+# simulated output
+Kconfig processing complete
+Configuration written to .config
+
+[demo] make ARCH=riscv defconfig
+# simulated output
+Configuration written to .config
+No build errors observed for Kconfig-only delta

@@ -1,0 +1,6 @@
+[demo] Validation round 2
+- Dependency wording explicit: yes
+- Help text mentions MMU requirement: yes
+- Scope remains single-file: yes
+- Simulated checkpatch status: clean
+Result: pass

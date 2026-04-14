@@ -1,0 +1,8 @@
+[demo output]
+Maintainers (illustrative only):
+- RISC-V maintainers
+- KVM maintainers
+- linux-riscv@lists.infradead.org
+- kvm@vger.kernel.org
+
+Note: replace with real `scripts/get_maintainer.pl` output before any actual submission.

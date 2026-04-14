@@ -1,0 +1,15 @@
+gaps:
+  - id: demo-riscv-kvm-mmu-kconfig
+    title: riscv/kvm Kconfig MMU dependency wording mismatch
+    status: accepted_for_demo
+    confidence: high
+    evidence:
+      - discover/code-evidence.md
+      - discover/history-evidence.md
+    scope:
+      files:
+        - arch/riscv/kvm/Kconfig
+      non_goals:
+        - runtime behavior changes
+        - UAPI changes
+        - selftest expansion beyond minimal config/build checks

@@ -1,0 +1,26 @@
+# Role Output
+
+## Role
+[当前角色名]
+
+## Objective
+[本轮目标]
+
+## Inputs
+- [输入工件1]
+- [输入工件2]
+
+## Actions
+- [本轮实际执行动作]
+
+## Findings / Results
+- [发现或结果]
+
+## Risks / Uncertainties
+- [风险或不确定项]
+
+## Decision
+[PASS / REVISE / REVIEW / DEBUG / BLOCKED / NEED_HUMAN / REVISE_GENERATION / ENTER_DEBUG]
+
+## Next Recommended Step
+[建议的下一步]

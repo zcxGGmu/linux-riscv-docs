@@ -1,0 +1,25 @@
+issue_id: demo-riscv-kvm-mmu-kconfig
+current_stage: patch_ready
+generation_review_round: 2
+debug_round: 1
+latest_decision: PATCH_READY
+latest_summary: >-
+  Round 1 implementation adjusted dependency but omitted help text clarification; spec review
+  requested debug/revision. Round 2 added explicit MMU wording to dependency/help text, and the
+  demo issue is considered patch-ready.
+human_gate_status:
+  gate_1_issue_selection: approved
+  gate_2_design_approval: approved
+  gate_3_send_email: pending
+risk_flags:
+  has_uapi_or_abi_impact: false
+  has_dt_or_kconfig_user_visible_change: true
+artifact_status:
+  discover: complete
+  plan: complete
+  generate_round_1: complete
+  review_round_1: complete
+  debug_round_1: complete
+  generate_round_2: complete
+  review_round_2: complete
+  patch: complete

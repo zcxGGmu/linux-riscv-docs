@@ -1,0 +1,9 @@
+issues:
+  - id: demo-riscv-kvm-mmu-kconfig
+    gap_id: demo-riscv-kvm-mmu-kconfig
+    stage: patch_ready
+    owner: human-maintainer
+    planner: claude-code
+    implementer: codex
+    latest_round: 2
+    latest_debug_round: 1

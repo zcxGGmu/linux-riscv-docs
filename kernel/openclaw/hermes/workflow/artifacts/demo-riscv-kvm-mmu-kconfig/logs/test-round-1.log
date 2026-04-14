@@ -1,0 +1,5 @@
+[demo] Validation round 1
+- Compared target Kconfig dependency before/after change
+- Verified no simulated unmet dependency warning
+- Spec note: help text still ambiguous for non-MMU readers
+Result: tests/config checks pass, spec completeness fails

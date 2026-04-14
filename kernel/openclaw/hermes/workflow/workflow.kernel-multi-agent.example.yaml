@@ -1,0 +1,267 @@
+version: 1
+name: linux-kernel-multi-agent-mvp
+description: >-
+  面向 Linux 内核贡献的多智能体工作流示例。聚焦 MVP：探索 -> 规划 -> 实现 -> 审核 -> 调试 -> 再审核 -> patch-ready。
+
+metadata:
+  date: 2026-04-14
+  owner: human-maintainer
+  references:
+    - ai-assisted-kernel-development-multi-agent-workflow.md
+    - kernel-multi-agent-role-prompts-claude-codex.md
+
+workspace:
+  root: ./artifacts/${ISSUE_ID}
+  issue_id_source: env:ISSUE_ID
+  directories:
+    discover: discover
+    plans: plans
+    review: review
+    debug: debug
+    patch: patch
+    state: state
+    logs: logs
+
+controller:
+  mode: artifact-driven
+  retry_policy:
+    max_rounds_generation_review: 3
+    max_rounds_debug: 2
+  stop_conditions:
+    - decision == "PATCH_READY"
+    - decision == "BLOCKED"
+    - generation_review_round > 3
+    - debug_round > 2
+  required_status_file: state/workflow.yaml
+
+human_gates:
+  gate_1_issue_selection:
+    when: after_stage == "discover_history"
+    required_if:
+      - existing_inflight_patch == true
+      - maintainer_rejection_history == true
+      - issue_confidence != "high"
+  gate_2_design_approval:
+    when: after_stage == "plan"
+    required_if:
+      - risk.has_uapi_or_abi_impact == true
+      - risk.has_dt_or_kconfig_user_visible_change == true
+      - planner.decision == "NEED_HUMAN"
+  gate_3_send_email:
+    when: after_stage == "patch"
+    always_required: true
+
+artifacts:
+  discover:
+    - discover/code-evidence.md
+    - discover/history-evidence.md
+    - state/gap_registry.yaml
+    - state/issue_map.yaml
+  plan:
+    - plans/design.md
+    - plans/test-matrix.md
+    - plans/risk.md
+  generate:
+    - logs/build-round-${ROUND_ID}.log
+    - logs/test-round-${ROUND_ID}.log
+    - state/change-summary-round-${ROUND_ID}.md
+  review:
+    - review/spec-round-${ROUND_ID}.md
+  debug:
+    - debug/failure-analysis-round-${DEBUG_ROUND}.md
+    - debug/fix-summary-round-${DEBUG_ROUND}.md
+    - debug/regression-round-${DEBUG_ROUND}.md
+  patch:
+    - patch/series-cover-letter.md
+    - patch/checkpatch.txt
+    - patch/get-maintainer.txt
+    - patch/send-email-example.sh
+
+shared_prompt_layers:
+  system_constraints: prompts/kernel-multi-agent/common/system-constraints.txt
+  output_template: prompts/kernel-multi-agent/common/output-template.txt
+
+agents:
+  scout_code:
+    runtime: claude-code
+    prompt: prompts/kernel-multi-agent/claude-code/scout-code.md
+    inputs:
+      - state/issue-brief.md
+      - state/keywords.txt
+      - state/subsystem-paths.txt
+    outputs:
+      - discover/code-evidence.md
+    allowed_decisions: [PASS, BLOCKED, NEED_HUMAN]
+
+  scout_history:
+    runtime: claude-code
+    prompt: prompts/kernel-multi-agent/claude-code/scout-history.md
+    inputs:
+      - state/issue-brief.md
+      - state/keywords.txt
+      - state/subsystem-paths.txt
+      - discover/code-evidence.md
+    outputs:
+      - discover/history-evidence.md
+    allowed_decisions: [PASS, BLOCKED, NEED_HUMAN]
+
+  planner:
+    runtime: claude-code
+    prompt: prompts/kernel-multi-agent/claude-code/planner.md
+    inputs:
+      - state/issue-brief.md
+      - discover/code-evidence.md
+      - discover/history-evidence.md
+    outputs:
+      - plans/design.md
+      - plans/test-matrix.md
+      - plans/risk.md
+    allowed_decisions: [PASS, REVISE, NEED_HUMAN, BLOCKED]
+
+  implementer:
+    runtime: codex
+    prompt: prompts/kernel-multi-agent/codex/implementer.md
+    inputs:
+      - plans/design.md
+      - plans/test-matrix.md
+      - plans/risk.md
+      - review/spec-round-${PREV_ROUND_ID}.md
+      - debug/failure-analysis-round-${PREV_DEBUG_ROUND}.md
+    outputs:
+      - logs/build-round-${ROUND_ID}.log
+      - logs/test-round-${ROUND_ID}.log
+      - state/change-summary-round-${ROUND_ID}.md
+    allowed_decisions: [REVIEW, DEBUG, BLOCKED, NEED_HUMAN]
+
+  spec_review:
+    runtime: claude-code
+    prompt: prompts/kernel-multi-agent/claude-code/spec-review.md
+    inputs:
+      - plans/design.md
+      - plans/test-matrix.md
+      - state/change-summary-round-${ROUND_ID}.md
+      - logs/build-round-${ROUND_ID}.log
+      - logs/test-round-${ROUND_ID}.log
+    outputs:
+      - review/spec-round-${ROUND_ID}.md
+    allowed_decisions: [PASS, REVISE_GENERATION, ENTER_DEBUG, NEED_HUMAN]
+
+  failure_analyzer:
+    runtime: claude-code
+    prompt: prompts/kernel-multi-agent/claude-code/failure-analyzer.md
+    inputs:
+      - plans/design.md
+      - plans/test-matrix.md
+      - logs/build-round-${ROUND_ID}.log
+      - logs/test-round-${ROUND_ID}.log
+      - state/change-summary-round-${ROUND_ID}.md
+    outputs:
+      - debug/failure-analysis-round-${DEBUG_ROUND}.md
+    allowed_decisions: [DEBUG, BLOCKED, NEED_HUMAN]
+
+  fix_agent:
+    runtime: codex
+    prompt: prompts/kernel-multi-agent/codex/fix-agent.md
+    inputs:
+      - debug/failure-analysis-round-${DEBUG_ROUND}.md
+      - plans/design.md
+      - plans/test-matrix.md
+    outputs:
+      - debug/fix-summary-round-${DEBUG_ROUND}.md
+      - debug/regression-round-${DEBUG_ROUND}.md
+      - logs/build-round-${ROUND_ID}.log
+      - logs/test-round-${ROUND_ID}.log
+    allowed_decisions: [REVIEW, BLOCKED, NEED_HUMAN]
+
+stages:
+  - id: discover_code
+    agent: scout_code
+    required_outputs:
+      - discover/code-evidence.md
+    on_pass: discover_history
+    on_blocked: blocked
+    on_need_human: gate_1_issue_selection
+
+  - id: discover_history
+    agent: scout_history
+    required_outputs:
+      - discover/history-evidence.md
+    on_pass: plan
+    on_blocked: blocked
+    on_need_human: gate_1_issue_selection
+
+  - id: plan
+    agent: planner
+    required_outputs:
+      - plans/design.md
+      - plans/test-matrix.md
+      - plans/risk.md
+    on_pass: generate
+    on_revise: plan
+    on_blocked: blocked
+    on_need_human: gate_2_design_approval
+
+  - id: generate
+    agent: implementer
+    required_outputs:
+      - logs/build-round-${ROUND_ID}.log
+      - logs/test-round-${ROUND_ID}.log
+      - state/change-summary-round-${ROUND_ID}.md
+    on_review: review
+    on_debug: debug
+    on_blocked: blocked
+    on_need_human: gate_2_design_approval
+
+  - id: review
+    agent: spec_review
+    required_outputs:
+      - review/spec-round-${ROUND_ID}.md
+    on_pass: patch_ready
+    on_revise_generation: generate
+    on_enter_debug: debug
+    on_need_human: gate_2_design_approval
+
+  - id: debug
+    sequence:
+      - failure_analyzer
+      - fix_agent
+    required_outputs:
+      - debug/failure-analysis-round-${DEBUG_ROUND}.md
+      - debug/fix-summary-round-${DEBUG_ROUND}.md
+      - debug/regression-round-${DEBUG_ROUND}.md
+    on_review: review
+    on_blocked: blocked
+    on_need_human: gate_2_design_approval
+
+  - id: patch_ready
+    description: >-
+      本示例在 patch-ready 阶段停止，由独立 Patch-Agent 或人工流程继续生成发送材料并进入 Gate-3。
+
+state_schema:
+  file: state/workflow.yaml
+  required_keys:
+    - issue_id
+    - current_stage
+    - generation_review_round
+    - debug_round
+    - latest_decision
+    - latest_summary
+    - human_gate_status
+    - risk_flags
+
+bootstrap_files:
+  - path: state/workflow.yaml
+    template: |
+      issue_id: ${ISSUE_ID}
+      current_stage: discover_code
+      generation_review_round: 0
+      debug_round: 0
+      latest_decision: INIT
+      latest_summary: bootstrap created
+      human_gate_status:
+        gate_1_issue_selection: pending
+        gate_2_design_approval: pending
+        gate_3_send_email: pending
+      risk_flags:
+        has_uapi_or_abi_impact: false
+        has_dt_or_kconfig_user_visible_change: false
