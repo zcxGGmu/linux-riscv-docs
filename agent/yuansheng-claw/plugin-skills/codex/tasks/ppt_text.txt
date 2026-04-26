@@ -1,0 +1,128 @@
+## ppt/slides/slide1.xml
+Agent4
+：
+RISC-V
+软件生态智能优化智能体
+■ RISC-V 优化交付链路（知识接入、规划拆解、协同开发、评审闭环）
+Workflow Overview  |  LLM Wiki + Plan Mode + Agent Teams + Review
+Optimization Workflow（
+优化工作流
+） — 知识接入 | 规划拆解 | 协同开发 | 评审闭环
+Step 1
+外部知识接入
+规范 / 案例
+↓
+LLM Wiki
+↓
+结构化知识页
+沉淀 ISA、工具链与社区案例&#10;为后续规划提供可检索上下文
+Knowledge Base
+Step 2
+Claude Code 规划
+目标 / 约束
+↓
+Plan Mode
+↓
+Todo / 验收点
+拆解任务、依赖、风险和检查点&#10;形成可执行计划与评审节奏
+Planning
+Step 3
+Claude Code 开发
+Plan Items
+↓
+Agent Teams&#10;Ralph Loop&#10;Ultrathink
+↓
+Patch + Self-test
+并行实现、联调修正、沉淀补丁&#10;根据 review 反馈持续迭代
+Implementation
+Step 4
+Codex Review
+Diff / Logs / Tests
+↓
+multi_agents&#10;Review
+↓
+Issues / Fix Advice
+检查正确性、回归与可维护性&#10;未通过则返回开发继续迭代
+Review Gate
+>
+>
+⇄
+迭代修正
+终止条件：Review 认证代码正确
+Output: 代码补丁（Codex Review 通过后导出）
+
+## ppt/slides/slide2.xml
+Agent5
+：
+RISC-V
+软件生态开源贡献智能体
+面向
+RISC-V 
+软件生态开源贡献
+Git Forges
+Pull Request
+Mail List
+Patch
+Human Review
+………………
+………………
+………………
+Agent Response
+………………
+………………
+………………
+CI Log
+………………
+………………
+………………
+Merge
+………………
+………………
+………………
+Repository
+Release
+Agent 6
+Code Update
+………………
+………………
+………………
+Resolve Issues
+………………
+………………
+………………
+Memory
+Per-Project Skills
+Action Module
+Per-Project Tools
+Agent 4
+Agent 5
+Shared Resources
+MCP Servers
+Web API
+CLI Tools
+Common 
+SKills
+Knowledge Base
+GitHub
+GitLab
+Mail
+……
+Build ENV
+Test Platform
+Internet
+LLM
+贡献工作流
+归因
+修复
+输入
+输出
+面向开源社区贡献闭环的社区评审监控与自动化修复智能体，通过任务封装、隔离环境来执行审计与回归验证。
+统一接收代码仓库状态、分析社区提交规范、项目知识库与外部反馈事件
+依托项目级技能、工具和执行模块，完成回归测试、
+commit
+生成、
+PR/Patch
+更新、评审反馈监控
+在检测到
+CI
+失败、社区评审意见或新的外部事件时，进行归因分流与修复编排，调度专项智能体完成问题定位与补丁修复，再推动重新验证与再次提交

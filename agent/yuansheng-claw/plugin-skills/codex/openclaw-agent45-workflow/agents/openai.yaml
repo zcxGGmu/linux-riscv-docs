@@ -1,0 +1,5 @@
+version: 1
+interface:
+  display_name: OpenClaw Agent4/5 Workflow
+  short_description: Orchestrates RISC-V optimization and contribution loops
+  default_prompt: Use Agent4 or Agent5 workflow to guide this task step by step.
