@@ -2,7 +2,7 @@
 
 # What you need to learn from claw-code repo
 
-![图像](./What you need to learn from claw-code repo.assets/HE2psIVbcAA6VLz.jpeg)
+![图像](./assets/HE2psIVbcAA6VLz.jpeg)
 
 # Stop Staring at the Files
 
@@ -36,15 +36,15 @@ None of these tools alone would have shipped claw-code in an hour. Wired togethe
 
 The agent team has defined roles, and they operate in a cycle.
 
-![图像](./What you need to learn from claw-code repo.assets/HE2qxFja0AA2Uf6.jpeg)
+![图像](./assets/HE2qxFja0AA2Uf6.jpeg)
 
 The Architect reads the directive and produces a plan. It analyzes the target system's structure, identifies what needs to be built, and writes out a sequence of steps. The Executor picks up that plan and starts building. It writes code, runs tools, generates tests. The Reviewer inspects the Executor's output, catches problems, and sends feedback. If the feedback is serious enough, the loop goes back to the Architect for re-planning. This cycle repeats until the output passes all checks.
 
-![图像](./What you need to learn from claw-code repo.assets/HE2qzFqbAAAYszc.jpeg)
+![图像](./assets/HE2qzFqbAAAYszc.jpeg)
 
 The whole time, the person who kicked this off might be asleep. The agents file updates to the Discord channel. If something is blocked, they mention the developer in a message. If nothing is blocked, they keep going.
 
-![图像](./What you need to learn from claw-code repo.assets/HE2qkbgbsAA3bQF.jpeg)
+![图像](./assets/HE2qkbgbsAA3bQF.jpeg)
 
 If you went to Ralphthon (https://luma.com/kxoq82yq) or OmOCon (https://luma.com/omocon-sf), you already know this idea. The philosophy behind those events was specific and practical: stop staying up all night at hackathons typing code by hand. That era is over. Instead, spend your energy designing agent systems and setting up the coordination between them. You sleep. They work.
 

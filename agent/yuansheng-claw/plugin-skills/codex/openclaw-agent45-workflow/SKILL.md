@@ -17,19 +17,66 @@ Trigger this skill when the request is about any of these:
 - 需要跟踪开源社区反馈、CI 失败、PR review、patch 迭代、再次提交
 - 用户提到 `Agent4`、`Agent5`、`优化工作流`、`贡献工作流`、`openclaw 跟进社区反馈` 等词
 
-High-signal trigger phrases include:
+## Trigger patterns
+
+### Optimization / Agent4
+
+High-signal phrases:
 - `帮我拆这个 RISC-V 任务并推进`
 - `openclaw 按 agent4 跑这个优化`
 - `先规划验收点，再改代码并自测`
+- `整理规范/案例后给出实施计划`
+
+Natural request examples:
+- `这个 RISC-V 适配任务你先接管，帮我拆计划、落地、再做 review 收口`
+- `这里有规范、报错和现有 patch，你按 agent4 的方式把它推进完`
+- `别直接改，先整理约束和验收点，再开始实现`
+- `先把案例和规范吃透，再给我一个可执行的计划和风险点`
+- `这个工具链改动容易回归，你按计划推进并把验证做扎实`
+
+### Contribution / Agent5
+
+High-signal phrases:
 - `把这个 patch/PR 带到 review 通过`
 - `分析 CI 为什么挂了并修掉`
 - `根据 review comments 更新补丁`
 - `跟进社区反馈直到可重新提交`
 - `做一次归因、修复、回归验证、再提交`
-- `整理规范/案例后给出实施计划`
 - `把这个问题按贡献工作流接管`
 
-Do not use this skill for one步即可完成的普通问答，或与 RISC-V / 开源贡献闭环无关的泛化编码任务。
+Natural request examples:
+- `这个问题不是一次改完就算了，你要盯着 CI 和 review 一直跟进`
+- `帮我看下这个 PR 为什么没过，修完后再补验证结论`
+- `我把 review 意见贴给你，你按贡献工作流逐条归因并更新补丁`
+- `这个补丁已经发出去了，后面社区回复、CI 失败、重新提交都由你接管`
+- `如果主线 review 不通过，就继续迭代，直到能合入或者明确卡点`
+- `这个不是普通问答，我要你像 Agent5 一样跟进到反馈闭环`
+
+### Workflow takeover / Hybrid
+
+High-signal phrases:
+- `你别只回答建议，直接按 workflow 带着这个任务往前走`
+- `先做技术修复，再跟进 CI 和 review 到闭环`
+- `按 agent4 + agent5 的方式把这件事接管到底`
+
+Natural request examples:
+- `先把问题修到 review 能看，再继续盯 CI 和社区反馈`
+- `这个事情从规划、实现到反馈处理都由你接管`
+- `不要只给方案，直接把这个 patch 从开发推进到可重新提交`
+
+## Non-trigger guardrails
+
+Do not use this skill when the user only wants:
+- one-shot factual Q&A with no execution loop
+- a tiny code edit with no planning, review, or follow-up
+- generic writing, translation, summary, or brainstorming unrelated to RISC-V or open-source contribution workflow
+- simple tutorial help such as explaining one concept, one command, or one error message in isolation
+
+Borderline rule:
+- if the request can be completed correctly in one short response or one tiny patch, do not trigger this skill
+- if the request implies staged execution, verification, or external feedback handling, trigger this skill
+
+If trigger confidence is low or the request is ambiguous, read `references/failure-modes.md`.
 
 ## Operating stance
 
@@ -46,6 +93,7 @@ First classify the task:
 - **Hybrid**: start with Agent4 to produce a correct patch, then continue with Agent5 to complete contribution follow-up.
 
 State the chosen mode in one sentence before proceeding.
+If the request is ambiguous, classify using `references/failure-modes.md` before proceeding.
 
 ## First-turn takeover template
 
@@ -76,6 +124,7 @@ Next action
 If the user already provided logs, diffs, review comments, CI links, or specs, summarize them under `Available evidence`.
 If information is missing, make a minimal safe assumption and mark it explicitly in `Constraints` or `Next action`.
 Do not start with a long explanation; start with takeover.
+Prefer 3-5 plan items on the first turn; expand only after more evidence appears.
 
 ## Stage 1 — Capture inputs and constraints
 

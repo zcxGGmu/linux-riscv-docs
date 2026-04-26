@@ -1,6 +1,6 @@
 # 你需要从 claw-code 仓库里学到什么
 
-![图像](./What you need to learn from claw-code repo.assets/HE2psIVbcAA6VLz.jpeg)
+![图像](./assets/HE2psIVbcAA6VLz.jpeg)
 
 # 别只盯着文件看
 
@@ -32,11 +32,11 @@
 
 代理团队有明确的角色划分，而且它们按一个循环运转。
 
-![图像](./What you need to learn from claw-code repo.assets/HE2qxFja0AA2Uf6.jpeg)
+![图像](./assets/HE2qxFja0AA2Uf6.jpeg)
 
 Architect 读取指令并产出计划。它分析目标系统的结构，识别需要构建什么，并写出一系列步骤。Executor 接过这份计划开始实施：写代码、运行工具、生成测试。Reviewer 检查 Executor 的输出，发现问题，并给出反馈。如果反馈足够严重，流程就会回到 Architect，重新规划。这个循环会持续重复，直到输出通过所有检查。
 
-![图像](./What you need to learn from claw-code repo.assets/HE2qzFqbAAAYszc.jpeg)
+![图像](./assets/HE2qzFqbAAAYszc.jpeg)
 
 而在这整个过程中，最初发起任务的那个人很可能正在睡觉。代理会把进展更新发到 Discord 频道。如果遇到阻塞，它们会提及开发者。如果没有阻塞，它们就继续工作。人类并不是在逐行操控；人类是在提供方向，并在必要时处理异常。
 
