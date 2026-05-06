@@ -1,0 +1,97 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram id="claw-experience-hub-cn" name="Claw Experience Hub">
+    <mxGraphModel dx="2066" dy="1202" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="v2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EAF7FF;gradientColor=#FFFFFF;strokeColor=none;" value="" vertex="1">
+          <mxGeometry height="880" width="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="v3" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#00A7D8;gradientColor=#1169C9;strokeColor=#0B66C3;fontColor=#FFFFFF;fontSize=22;fontStyle=1;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Exp&lt;/b&gt;" vertex="1">
+          <mxGeometry height="48" width="48" x="25" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="v4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=32;fontStyle=1;fontColor=#061A40;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;" value="&lt;b&gt;源生Claw 共享经验中心（Claw Experience Hub）设计方案&lt;/b&gt;" vertex="1">
+          <mxGeometry height="50" width="1300" x="85" y="15" as="geometry" />
+        </mxCell>
+        <mxCell id="v5" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=17;fontColor=#0B66C3;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;" value="统一 Knowledge Base / RV-OptKB / Shared Memory，服务 Agent1-Lite 与 Agent3-Lite 的诊断闭环" vertex="1">
+          <mxGeometry height="30" width="1380" x="88" y="63" as="geometry" />
+        </mxCell>
+        <mxCell id="v6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4FBFF;strokeColor=#2F80ED;strokeWidth=2;dashed=1;arcSize=12;fontFamily=Microsoft YaHei;" value="" vertex="1">
+          <mxGeometry height="640" width="270" x="30" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="v7" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#0B66C3;align=center;fontFamily=Microsoft YaHei;" value="&lt;b&gt;经验生产与消费端&lt;/b&gt;" vertex="1">
+          <mxGeometry height="35" width="240" x="45" y="122" as="geometry" />
+        </mxCell>
+        <mxCell id="v8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Agent1-Lite&lt;/b&gt;&lt;br&gt;跨架构测试执行&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;TestPlan / Pipeline&lt;br&gt;性能证据、测试避坑&lt;/span&gt;" vertex="1">
+          <mxGeometry height="99" width="220" x="55" y="171" as="geometry" />
+        </mxCell>
+        <mxCell id="v9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Agent3-Lite&lt;/b&gt;&lt;br&gt;性能诊断与蓝图生成&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;&lt;br&gt;检索共享经验&lt;br&gt;回写诊断经验&lt;/span&gt;" vertex="1">
+          <mxGeometry height="98" width="220" x="55" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="v10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FCFF;strokeColor=#4EA3E8;strokeWidth=1.5;arcSize=10;fontColor=#0B2545;fontSize=14;fontFamily=Microsoft YaHei;" value="&lt;b&gt;团队开发者 / 审核者&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;检索经验、人工审核&lt;br&gt;反馈有用 / 错误 / 过期&lt;/span&gt;" vertex="1">
+          <mxGeometry height="74" width="220" x="55" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="v11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4FBFF;strokeColor=#2F80ED;strokeWidth=2;dashed=1;arcSize=12;fontFamily=Microsoft YaHei;" value="" vertex="1">
+          <mxGeometry height="640" width="900" x="320" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="v12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#006DB8;gradientColor=#004F98;strokeColor=#0056A0;fontColor=#FFFFFF;fontStyle=1;fontSize=22;arcSize=8;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Claw Experience Hub：统一共享经验中心&lt;/b&gt;" vertex="1">
+          <mxGeometry height="50" width="900" x="320" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="v13" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=15;fontColor=#0B66C3;align=center;fontFamily=Microsoft YaHei;" value="&lt;b&gt;统一入口、统一元数据、统一证据引用、统一权限和审核状态；底层仍保持三类经验边界&lt;/b&gt;" vertex="1">
+          <mxGeometry height="24" width="860" x="345" y="173" as="geometry" />
+        </mxCell>
+        <mxCell id="v14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;知识库&lt;br&gt;Knowledge Base&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;稳定事实与规范&lt;br&gt;RISC-V ISA / RVV&lt;br&gt;硬件文档&lt;br&gt;项目构建与社区规范&lt;/span&gt;" vertex="1">
+          <mxGeometry height="165" width="260" x="350" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="v15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF7EF;strokeColor=#26A65B;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;RV-OptKB&lt;br&gt;RISC-V 优化经验库&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Optimization Case&lt;br&gt;Actionable Thought&lt;br&gt;General Idea&lt;br&gt;性能验证证据&lt;/span&gt;" vertex="1">
+          <mxGeometry height="165" width="260" x="635" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="v16" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#F2994A;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;共享记忆&lt;br&gt;Shared Memory&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;团队过程经验&lt;br&gt;测试避坑、历史异常&lt;br&gt;任务交接、社区偏好&lt;br&gt;临时性经验可过期&lt;/span&gt;" vertex="1">
+          <mxGeometry height="165" width="260" x="919" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="v17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;统一 Experience Card 元数据层&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;card_type / project / arch / hardware / operation_tags / bottleneck_tags / evidence_refs / confidence / status / visibility / expires_at&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;所有经验都必须带来源、证据引用、状态和权限；自动写入默认 candidate&lt;/span&gt;" vertex="1">
+          <mxGeometry height="110" width="830" x="350" y="341" as="geometry" />
+        </mxCell>
+        <mxCell id="v18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FCFF;strokeColor=#4EA3E8;strokeWidth=1.5;arcSize=10;fontColor=#0B2545;fontSize=14;fontFamily=Microsoft YaHei;" value="&lt;b&gt;&lt;font style=&quot;font-size: 15px;&quot;&gt;统一检索与排序 API&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;query-diagnosis-context&lt;br&gt;稳定事实 + 优化经验 + 团队记忆&lt;br&gt;按项目 / 架构 / 硬件 / 瓶颈 / 置信度混合排序&lt;/span&gt;" vertex="1">
+          <mxGeometry height="109" width="390" x="350" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="v19" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FCFF;strokeColor=#4EA3E8;strokeWidth=1.5;arcSize=10;fontColor=#0B2545;fontSize=14;fontFamily=Microsoft YaHei;" value="&lt;b&gt;&lt;font style=&quot;font-size: 15px;&quot;&gt;发布与回写 API&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;publish-execution&lt;br&gt;publish-diagnosis&lt;br&gt;publish-patch-result&lt;br&gt;只写摘要和证据引用，不写 raw log&lt;/span&gt;" vertex="1">
+          <mxGeometry height="105" width="390" x="790" y="211" as="geometry" />
+        </mxCell>
+        <mxCell id="v20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9ECFF;strokeColor=#0B70C9;strokeWidth=2;arcSize=8;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;治理原则：&lt;/b&gt;candidate → reviewed / evidence_backed → active / claw_validated；支持人工审核、反馈纠错、过期废弃" vertex="1">
+          <mxGeometry height="42" width="830" x="345" y="671" as="geometry" />
+        </mxCell>
+        <mxCell id="v21" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4FBFF;strokeColor=#2F80ED;strokeWidth=2;dashed=1;arcSize=12;fontFamily=Microsoft YaHei;" value="" vertex="1">
+          <mxGeometry height="640" width="330" x="1240" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="v22" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#0B66C3;align=center;fontFamily=Microsoft YaHei;" value="&lt;b&gt;应用输出与治理&lt;/b&gt;" vertex="1">
+          <mxGeometry height="35" width="300" x="1255" y="141" as="geometry" />
+        </mxCell>
+        <mxCell id="v23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Context Package&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;返回给 Agent3-Lite：&lt;br&gt;当前执行证据&lt;br&gt;稳定知识 / 优化经验 / 团队记忆&lt;br&gt;风险提示与反例&lt;/span&gt;" vertex="1">
+          <mxGeometry height="120" width="280" x="1265" y="206" as="geometry" />
+        </mxCell>
+        <mxCell id="v24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF7EF;strokeColor=#26A65B;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;RootCauseBlueprint&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Agent3-Lite 输出给 Agent4：&lt;br&gt;根因候选、证据引用、优化提示、验证计划&lt;/span&gt;" vertex="1">
+          <mxGeometry height="105" width="280" x="1265" y="357" as="geometry" />
+        </mxCell>
+        <mxCell id="v25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0ECFF;strokeColor=#6F42C1;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;共享经验治理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;• 自动写入默认 candidate&lt;br&gt;• Knowledge Base 只存稳定事实&lt;br&gt;• RV-OptKB 存结构化优化经验&lt;br&gt;• Shared Memory 不作为确定事实源&lt;br&gt;• 权限、过期、反馈、人工晋级&lt;/span&gt;" vertex="1">
+          <mxGeometry height="230" width="280" x="1265" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="v26" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D8ECFF;strokeColor=#0B66C3;strokeWidth=2;arcSize=12;" value="" vertex="1">
+          <mxGeometry height="85" width="1540" x="30" y="772" as="geometry" />
+        </mxCell>
+        <mxCell id="v27" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=17;fontColor=#004F98;align=center;fontFamily=Microsoft YaHei;" value="&lt;b&gt;最小闭环：Agent1-Lite 产生可信测试证据 → 共享经验中心沉淀与检索 → Agent3-Lite 生成诊断蓝图 → Agent4 产出 Patch → Agent1-Lite 回归验证并回写经验&lt;/b&gt;" vertex="1">
+          <mxGeometry height="25" width="1500" x="55" y="785" as="geometry" />
+        </mxCell>
+        <mxCell id="v28" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#0B2545;align=center;fontFamily=Microsoft YaHei;" value="设计目标：复用现有 Agent1 测试框架与 Agent3 轻量诊断流程，在不过度复杂化系统的前提下，让团队经验可追溯、可审核、可复用。" vertex="1">
+          <mxGeometry height="28" width="1450" x="80" y="819" as="geometry" />
+        </mxCell>
+        <mxCell id="X3VTnEd5ofDAcdL147EX-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Agent5-Lite&lt;/b&gt;&lt;br&gt;开源提交与反馈跟踪&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;社区反馈&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;CI失败分类&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;成功经验、&lt;/span&gt;&lt;span style=&quot;font-size: 13px; background-color: transparent; color: light-dark(rgb(11, 37, 69), rgb(188, 211, 238));&quot;&gt;拒绝原因&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="120" width="220" x="55" y="533" as="geometry" />
+        </mxCell>
+        <mxCell id="X3VTnEd5ofDAcdL147EX-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF6FF;strokeColor=#0B70C9;strokeWidth=2;arcSize=12;fontColor=#0B2545;fontSize=15;fontFamily=Microsoft YaHei;" value="&lt;b&gt;Agent4-Lite&lt;/b&gt;&lt;br&gt;补丁规划和候选补丁生成&lt;br&gt;&lt;br&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;候选补丁回归测试结果分析&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;记录验证优化案例&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;记录回归失败原因、测试坑点&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="120" width="220" x="55" y="398" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

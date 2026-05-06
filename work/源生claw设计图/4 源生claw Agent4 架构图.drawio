@@ -1,0 +1,202 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram id="agent4_lite_design" name="Agent4-Lite">
+    <mxGraphModel dx="2431" dy="1414" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fbf8ff;strokeColor=none;" value="" vertex="1">
+          <mxGeometry height="900" width="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=32;fontColor=#25123f;align=left;verticalAlign=middle;spacing=0;" value="&lt;b&gt;源生Claw - Agent4 Lite：补丁规划与候选补丁生成智能体设计方案&lt;/b&gt;" vertex="1">
+          <mxGeometry height="44" width="1380" x="70" y="14" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontColor=#5b2bbd;align=left;verticalAlign=middle;spacing=0;" value="以 Agent3-Lite 的 RootCauseBlueprint 为输入，结合共享经验中心，生成受约束的 PatchPlan / PatchCandidate，并通过 Agent1-Lite 回归验证" vertex="1">
+          <mxGeometry height="30" width="1250" x="75" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" parent="1" style="shape=ellipse;html=1;fillColor=#6c38d1;gradientColor=#1e9cf0;strokeColor=none;shadow=1;" value="" vertex="1">
+          <mxGeometry height="42" width="42" x="16" y="18" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=23;fontColor=#ffffff;align=center;verticalAlign=middle;spacing=0;" value="&lt;b&gt;A4&lt;/b&gt;" vertex="1">
+          <mxGeometry height="32" width="34" x="21" y="24" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontColor=#2d1748;fillColor=#f4eaff;strokeColor=#8e57d4;strokeWidth=2;dashed=1;dashPattern=6 4;shadow=0;align=left;verticalAlign=top;spacingTop=10;spacingLeft=14;spacing=-7;" value="&lt;b&gt;Layer 1：蓝图与经验上下文层&lt;/b&gt;" vertex="1">
+          <mxGeometry height="158" width="1550" x="25" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#f7f0ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;Agent3-Lite 蓝图输入&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;RootCauseBlueprint / 根因、约束、验证计划&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="285" x="115" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#f7f0ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;共享经验中心&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Knowledge Base / RV-OptKB / Shared Memory&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="330" x="475" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#f7f0ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;Patch Context Package&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;项目规范、优化经验、团队避坑&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="300" x="890" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#fff7ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;准入与边界&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;证据不足不生成 patch&lt;br&gt;不直接提交上游&lt;/span&gt;" vertex="1">
+          <mxGeometry height="78" width="230" x="1270" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" parent="1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;rounded=0;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=20;fontColor=#5b2bbd;align=center;verticalAlign=middle;spacing=0;" value="&lt;b&gt;输入与&lt;br&gt;上下文&lt;/b&gt;" vertex="1">
+          <mxGeometry height="80" width="90" x="25" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="c8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="c9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="c10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontColor=#2d1748;fillColor=#f4eaff;strokeColor=#8e57d4;strokeWidth=2;dashed=1;dashPattern=6 4;shadow=0;align=left;verticalAlign=top;spacingTop=10;spacingLeft=14;" value="&lt;b&gt;Layer 2：补丁规划与候选生成层（受控开发区）&lt;/b&gt;" vertex="1">
+          <mxGeometry height="310" width="965" x="25" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#f8f3ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;蓝图接收器&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px&quot;&gt;校验目标文件、函数、证据与约束&lt;/span&gt;" vertex="1">
+          <mxGeometry height="88" width="165" x="65" y="376" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#f8f3ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;上下文检索器&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px&quot;&gt;获取 Patch Context Package&lt;/span&gt;" vertex="1">
+          <mxGeometry height="88" width="165" x="260" y="376" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#f8f3ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;PatchPlan 生成器&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px&quot;&gt;修改范围、步骤、风险、验证计划&lt;/span&gt;" vertex="1">
+          <mxGeometry height="88" width="165" x="455" y="376" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#f8f3ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;PatchCandidate 生成器&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;span style=&quot;font-size:12px&quot;&gt;创建分支、局部修改、生成 git diff&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="88" width="200" x="650" y="376" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="c18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c19" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="c19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c20" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="c20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c21" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="c10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="c18" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="240" />
+              <mxPoint x="10" y="240" />
+              <mxPoint x="10" y="420" />
+            </Array>
+            <mxPoint x="500" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wA6hr1FxRlzBOfMF6rjB-1" connectable="0" parent="e25" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;证据足够&lt;/font&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.3283" y="-1" as="geometry">
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c26" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontColor=#1f1633;fillColor=#efe2ff;strokeColor=#6f42c1;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;MCP-5 Lite 工具集&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;代码搜索 / tree-sitter AST / apply_patch / Git Diff / 本地命令白名单&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="625" x="170" y="495" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="c26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;dashed=1;dashPattern=6 4;exitX=0.93;exitY=-0.029;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitPerimeter=0;" target="c21" value="受控工具">
+          <mxGeometry relative="1" x="-0.0578" y="-40" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c28" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=15;fontColor=#5a3c00;fillColor=#fff7e6;strokeColor=#d69b00;strokeWidth=2;shadow=0;spacing=8;align=center;verticalAlign=middle;" value="默认限制：&lt;br&gt;局部函数级修改&lt;br&gt;不做大规模重构" vertex="1">
+          <mxGeometry height="70" width="125" x="848" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="c29" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontColor=#2d1748;fillColor=#f4eaff;strokeColor=#8e57d4;strokeWidth=2;dashed=1;dashPattern=6 4;shadow=0;align=left;verticalAlign=top;spacingTop=10;spacingLeft=14;" value="&lt;b&gt;Layer 3：本地检查与轻量评审层&lt;/b&gt;" vertex="1">
+          <mxGeometry height="310" width="565" x="1010" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="c30" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#fff9ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;本地 Self-check&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px&quot;&gt;编译 / 单测 / 格式 / license / diff 范围&lt;/span&gt;" vertex="1">
+          <mxGeometry height="90" width="220" x="1050" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="c31" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#fff9ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;轻量 Review Gate&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px&quot;&gt;计划一致性、约束校验、风险检查&lt;/span&gt;" vertex="1">
+          <mxGeometry height="90" width="220" x="1320" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="c32" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=16;fontColor=#1f1633;fillColor=#f2e8ff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;Fix Advice / 最多 2 轮修正&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px&quot;&gt;失败时给出修正建议，超限转人工&lt;/span&gt;" vertex="1">
+          <mxGeometry height="68" width="260" x="1143" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="c33" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=15;fontColor=#1f1633;fillColor=#fff2f9;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;人工确认&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;高风险或越界修改&lt;/span&gt;" vertex="1">
+          <mxGeometry height="68" width="120" x="1446" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" edge="1" parent="1" source="c21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;" target="c30" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e35" edge="1" parent="1" source="c30" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c31" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e36" edge="1" parent="1" source="c31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ad5bd6;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#ad5bd6;" target="c32" value="拒绝">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e37" edge="1" parent="1" source="c32" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ad5bd6;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#ad5bd6;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="c21" value="迭代修正">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="509" />
+              <mxPoint x="1000" y="442" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e38" edge="1" parent="1" source="c31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ad5bd6;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#ad5bd6;dashed=1;dashPattern=6 4;" target="c33" value="需要确认">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c39" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontColor=#2d1748;fillColor=#f4eaff;strokeColor=#8e57d4;strokeWidth=2;dashed=1;dashPattern=6 4;shadow=0;align=left;verticalAlign=top;spacingTop=10;spacingLeft=14;" value="&lt;b&gt;Layer 4：回归验证、交付与经验回写层&lt;/b&gt;" vertex="1">
+          <mxGeometry height="230" width="1550" x="25" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="c40" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#f5efff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;调用 Agent1-Lite 回归&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;通过 MCP-1 发起 patch_regression&lt;br&gt;复用现有 TestPlan / Pipeline&lt;/span&gt;" vertex="1">
+          <mxGeometry height="86" width="250" x="80" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="c41" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#f5efff;strokeColor=#7f48cf;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;回归结果分析&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;passed / failed / noisy / infra_failed&lt;/span&gt;" vertex="1">
+          <mxGeometry height="86" width="230" x="390" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="c42" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#ebfff3;strokeColor=#239b59;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;VerifiedPatchPackage&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;patch_ref、diff_summary、测试证据、风险说明&lt;/span&gt;" vertex="1">
+          <mxGeometry height="86" width="250" x="695" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="c43" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#f0f7ff;strokeColor=#2b6fd6;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;开发者确认&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;查看 patch、证据、提交说明&lt;/span&gt;" vertex="1">
+          <mxGeometry height="86" width="185" x="1020" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="c44" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=17;fontColor=#1f1633;fillColor=#fff5e8;strokeColor=#d08018;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;交给 Agent5&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;PR / Patch Series&lt;br&gt;开源贡献流程&lt;/span&gt;" vertex="1">
+          <mxGeometry height="86" width="195" x="1270" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="c45" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=15;fontColor=#1f1633;fillColor=#f7f0ff;strokeColor=#6f42c1;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;b&gt;共享经验中心回写：RV-OptKB 记录验证结果与优化案例；Shared Memory 记录失败原因、测试坑点、交接摘要&lt;/b&gt;" vertex="1">
+          <mxGeometry height="46" width="555" x="390" y="798" as="geometry" />
+        </mxCell>
+        <mxCell id="e46" edge="1" parent="1" source="c31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="c40" value="通过评审">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1430" y="600" />
+              <mxPoint x="10" y="600" />
+              <mxPoint x="10" y="718" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e47" edge="1" parent="1" source="c40" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c41" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e48" edge="1" parent="1" source="c41" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#228b57;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#228b57;" target="c42" value="通过">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e49" edge="1" parent="1" source="c41" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ad5bd6;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#ad5bd6;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="c32" value="失败可修复">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="505" y="640" />
+              <mxPoint x="1273" y="640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e50" edge="1" parent="1" source="c41" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c45" value="结果沉淀">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e51" edge="1" parent="1" source="c42" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;" target="c43" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e52" edge="1" parent="1" source="c43" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d08018;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#d08018;" target="c44" value="确认后">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e53" edge="1" parent="1" source="c42" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6f42c1;strokeWidth=3;endArrow=block;endFill=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=14;fontColor=#6f42c1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c45" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c54" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=15;fontColor=#1f1633;fillColor=#fff9ff;strokeColor=#8e57d4;strokeWidth=2;shadow=1;spacing=8;align=center;verticalAlign=middle;" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;&lt;b style=&quot;&quot;&gt;关键原则&lt;/b&gt;&lt;br&gt;不直接提交上游；不直接控制硬件；不绕过 Agent1-Lite 回归；低证据不生成 Patch&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="290" x="1240" y="775" as="geometry" />
+        </mxCell>
+        <mxCell id="c55" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=18;fontStyle=1;fontColor=#ffffff;fillColor=#5b2bbd;gradientColor=#9b64e6;gradientDirection=east;strokeColor=#4c1f9e;strokeWidth=2;shadow=1;align=center;verticalAlign=middle;" value="目标：以轻量、受控、可回归的方式，把 Agent3-Lite 蓝图转化为可验证补丁包，加速 RISC-V 性能优化闭环" vertex="1">
+          <mxGeometry height="34" width="1260" x="170" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Noto Sans CJK SC, Microsoft YaHei, Arial;fontSize=20;fontStyle=1;fontColor=#ffffff;fillColor=#5b2bbd;gradientColor=#9b64e6;gradientDirection=east;strokeColor=#4c1f9e;strokeWidth=2;shadow=1;align=center;verticalAlign=middle;" value="Agent4-Lite 核心流水线：先规划，再生成补丁" vertex="1">
+          <mxGeometry height="36" width="790" x="60" y="330" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

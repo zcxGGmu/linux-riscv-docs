@@ -1,0 +1,350 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram id="agent1-lite-cn" name="Agent1-lite 简体中文设计图">
+    <mxGraphModel dx="2951" dy="1717" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="background" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EAF9FF;strokeColor=#EAF9FF;strokeWidth=0;" value="" vertex="1">
+          <mxGeometry height="1080" width="1920" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontFamily=Noto Sans CJK SC;fontSize=32;fontStyle=1;fontColor=#061C33;" value="源生 Claw - Agent1-lite 设计图：现有自动化测试框架的 MCP 化封装" vertex="1">
+          <mxGeometry height="46" width="1650" x="90" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontFamily=Noto Sans CJK SC;fontSize=18;fontColor=#245C85;" value="设计原则：复用现有 FastAPI / Celery / Redis / Ansible / MySQL / MinIO 实现；只做薄适配、轻量排队、结果摘要与知识回写" vertex="1">
+          <mxGeometry height="30" width="1580" x="130" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="logo" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#25B8D8;strokeColor=#0B65C2;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#FFFFFF;" value="A1" vertex="1">
+          <mxGeometry height="48" width="48" x="28" y="24" as="geometry" />
+        </mxCell>
+        <mxCell id="left_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#EAF6FF;strokeColor=#49A6D8;strokeWidth=2;dashed=1;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#0D335B;" value="" vertex="1">
+          <mxGeometry height="735" width="300" x="40" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#EAF6FF;strokeColor=#49A6D8;strokeWidth=2;dashed=1;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#0D335B;" value="" vertex="1">
+          <mxGeometry height="170" width="1110" x="365" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="base_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#F7FCFF;strokeColor=#76BDE5;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#0D335B;" value="" vertex="1">
+          <mxGeometry height="495" width="1110" x="365" y="315" as="geometry" />
+        </mxCell>
+        <mxCell id="right_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#EAF6FF;strokeColor=#49A6D8;strokeWidth=2;dashed=1;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#0D335B;" value="" vertex="1">
+          <mxGeometry height="595" width="380" x="1500" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#EAF6FF;strokeColor=#49A6D8;strokeWidth=2;dashed=1;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#0D335B;" value="" vertex="1">
+          <mxGeometry height="125" width="1840" x="40" y="925" as="geometry" />
+        </mxCell>
+        <mxCell id="left_label" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D4ECFF;strokeColor=#2E86C1;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#08365E;" value="上层调用方" vertex="1">
+          <mxGeometry height="44" width="255" x="62" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp_label" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D4ECFF;strokeColor=#2E86C1;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#08365E;" value="MCP-1 薄适配层" vertex="1">
+          <mxGeometry height="44" width="320" x="390" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="right_label" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D4ECFF;strokeColor=#2E86C1;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#08365E;" value="结果摘要与下游分发" vertex="1">
+          <mxGeometry height="44" width="330" x="1522" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_label" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D4ECFF;strokeColor=#2E86C1;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#08365E;" value="共享经验中心（三类知识）" vertex="1">
+          <mxGeometry height="44" width="280" x="62" y="943" as="geometry" />
+        </mxCell>
+        <mxCell id="caller_dev" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFFFFF;strokeColor=#76BDE5;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#062B4F;" value="开发者 / 团队成员&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;手动基线、专项测试&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="75" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="caller_a2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFFFFF;strokeColor=#76BDE5;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#062B4F;" value="Agent 2&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;生态评分 / 周期评估&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="75" y="294" as="geometry" />
+        </mxCell>
+        <mxCell id="caller_a3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFFFFF;strokeColor=#76BDE5;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#062B4F;" value="Agent 3&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;诊断请求 / 固定探针&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="75" y="387" as="geometry" />
+        </mxCell>
+        <mxCell id="caller_a4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFFFFF;strokeColor=#76BDE5;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#062B4F;" value="Agent 4&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;PatchCandidate 回归测试&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="75" y="481" as="geometry" />
+        </mxCell>
+        <mxCell id="caller_kb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFFFFF;strokeColor=#76BDE5;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#062B4F;" value="共享经验中心&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;历史 Case 复测&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="75" y="572" as="geometry" />
+        </mxCell>
+        <mxCell id="scope_note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FDE8E8;strokeColor=#D64545;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#5A1616;" value="&lt;b&gt;第一版边界&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;span style=&quot;font-size:13px&quot;&gt;不重构测试平台；不做复杂资源租约；不让 LLM 直接生成底层命令。&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="250" x="65" y="655" as="geometry" />
+        </mxCell>
+        <mxCell id="queue_note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F7FBFF;strokeColor=#9DD0EE;strokeWidth=1.5;arcSize=8;fontFamily=Noto Sans CJK SC;fontSize=15;fontColor=#0D335B;spacing=4;" value="轻量排队：复用 Celery 队列 + exec_id；新增 request_type / source_agent / priority 字段即可。" vertex="1">
+          <mxGeometry height="73" width="250" x="65" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp_adapter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;MCP-1 Adapter&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;统一接收 Agent / 开发者请求&lt;br&gt;映射到现有 REST API&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="405" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="request_converter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;TestRequest 转换器&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;request_type / source_agent / priority&lt;br&gt;repo、branch、patch_ref、workload&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="255" x="660" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="template_lib" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;测试模板库&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;baseline / cross_arch / patch_regression&lt;br&gt;perf_stat_probe / objdump_probe&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="300" x="940" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="api_map" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;调用现有 API&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;/api/test-plans&lt;br&gt;/api/test-plans/{plan_id}/execute&lt;br&gt;/api/execution-records/{exec_id}&lt;/font&gt;" vertex="1">
+          <mxGeometry height="84" width="180" x="1265" y="198" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="mcp_adapter" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="request_converter" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="request_converter" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="template_lib" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="template_lib" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="api_map" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="caller_dev" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#83BCE5;strokeWidth=1.8;" target="mcp_adapter" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="FuqH0YUBqhblpfX2y-vR-1" connectable="0" parent="e5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;飞书通知&lt;/font&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.16" y="-2" as="geometry">
+            <mxPoint x="3" y="-12" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="caller_a2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#83BCE5;strokeWidth=1.8;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="mcp_adapter" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="340" />
+              <mxPoint x="330" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="caller_a3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#83BCE5;strokeWidth=1.8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="mcp_adapter" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="350" y="422" />
+              <mxPoint x="350" y="300" />
+              <mxPoint x="520" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="caller_a4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#83BCE5;strokeWidth=1.8;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="mcp_adapter" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="350" y="516" />
+              <mxPoint x="350" y="300" />
+              <mxPoint x="520" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="caller_kb" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#83BCE5;strokeWidth=1.8;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="mcp_adapter" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="350" y="607" />
+              <mxPoint x="350" y="300" />
+              <mxPoint x="520" y="300" />
+            </Array>
+            <mxPoint x="520" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="FuqH0YUBqhblpfX2y-vR-2" connectable="0" parent="e9" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;单Case测试&lt;/font&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.2455" y="1" as="geometry">
+            <mxPoint x="51" y="-152" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="queue_title" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#0B65C2;strokeColor=#084B8A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=24;fontStyle=1;fontColor=#FFFFFF;" value="任务队列" vertex="1">
+          <mxGeometry height="36" width="150" x="650" y="398" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_title" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#0B65C2;strokeColor=#084B8A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=24;fontStyle=1;fontColor=#FFFFFF;align=center;" value="执行节点" vertex="1">
+          <mxGeometry height="36" width="150" x="895" y="398" as="geometry" />
+        </mxCell>
+        <mxCell id="data_title" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#0B65C2;strokeColor=#084B8A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=24;fontStyle=1;fontColor=#FFFFFF;" value="数据层" vertex="1">
+          <mxGeometry height="36" width="150" x="1185" y="398" as="geometry" />
+        </mxCell>
+        <mxCell id="fastapi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;FastAPI / Swagger&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;测试计划、执行记录、Agent 管理 API&lt;/span&gt;" vertex="1">
+          <mxGeometry height="72" width="220" x="390" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="core_services" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;核心服务&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Agent Manager / Config Manager&lt;br&gt;plan_init.py / pipeline_init.py&lt;/span&gt;" vertex="1">
+          <mxGeometry height="86" width="220" x="390" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="plan_exec" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;计划执行&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;plan_exec.py&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 11px;&quot;&gt;task_generator.py / task_sender.py&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="65" width="220" x="390" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="celery" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFF5CC;strokeColor=#DBA800;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#4A3600;" value="&lt;b&gt;Celery + Redis&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;动态队列：test_queue_{exec_id}&lt;br&gt;异步执行、失败重试、状态跟踪&lt;/span&gt;" vertex="1">
+          <mxGeometry height="96" width="220" x="650" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="queue_fields" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFF5CC;strokeColor=#DBA800;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#4A3600;" value="&lt;b&gt;轻量排队字段&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;request_type、source_agent&lt;br&gt;priority&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="220" x="650" y="558" as="geometry" />
+        </mxCell>
+        <mxCell id="ansible" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;Ansible 启动远程 Agent&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;基于 target_host_config&lt;br&gt;生成 inventory / playbook&lt;/span&gt;" vertex="1">
+          <mxGeometry height="61" width="220" x="650" y="642" as="geometry" />
+        </mxCell>
+        <mxCell id="mysql" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;MySQL&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;TestPlan&lt;br&gt;ExecutionRecord&lt;br&gt;TaskExecutionRecord&lt;/span&gt;" vertex="1">
+          <mxGeometry height="84" width="220" x="1185" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="minio" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;MinIO&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;日志、结果 zip、Excel&lt;br&gt;perf_stat、objdump、artifact&lt;/span&gt;" vertex="1">
+          <mxGeometry height="84" width="220" x="1185" y="555" as="geometry" />
+        </mxCell>
+        <mxCell id="existing_api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#F4F7FA;strokeColor=#9AAFC2;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=15;fontColor=#23384D;" value="&lt;b&gt;&lt;font style=&quot;font-size: 17px;&quot;&gt;现有查询入口&lt;/font&gt;&lt;/b&gt;" vertex="1">
+          <mxGeometry height="42" width="220" x="1185" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="api_map" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;entryX=0.851;entryY=-0.01;entryDx=0;entryDy=0;entryPerimeter=0;" target="fastapi" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1340" y="390" />
+              <mxPoint x="577" y="390" />
+              <mxPoint x="577" y="449" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="fastapi" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="core_services" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="core_services" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="plan_exec" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="plan_exec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="celery" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="630" y="677" />
+              <mxPoint x="630" y="498" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="queue_fields" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#DBA800;strokeWidth=1.8;" target="celery" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="worker" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="executor" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="executor" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="compress" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="plan_exec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="mysql" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="630" y="678" />
+              <mxPoint x="630" y="710" />
+              <mxPoint x="1440" y="710" />
+              <mxPoint x="1440" y="492" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="executor" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="mysql" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="compress" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="minio" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="resource_label" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D4ECFF;strokeColor=#2E86C1;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#08365E;" value="目标执行节点" vertex="1">
+          <mxGeometry height="36" width="170" x="390" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="riscv_node" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;RISC-V 目标主机&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;编译、功能测试、Perf 采样&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="250" x="590" y="735" as="geometry" />
+        </mxCell>
+        <mxCell id="x86_node" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;X86 / QEMU / 管理节点&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;交叉编译、Smoke、辅助调度&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="250" x="1160" y="735" as="geometry" />
+        </mxCell>
+        <mxCell id="summary_builder" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;Execution Summary Builder&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;把执行记录、任务记录、MinIO 链接&lt;br&gt;整理为 Agent 可读摘要&lt;/span&gt;" vertex="1">
+          <mxGeometry height="76" width="320" x="1530" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="summary_schema" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;摘要内容&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;exec_id / plan_id / target / status&lt;br&gt;metrics / artifacts / diagnosis_hint&lt;/span&gt;" vertex="1">
+          <mxGeometry height="72" width="320" x="1530" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="publish_hooks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;Publish Hooks&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;按请求来源分发结果&lt;br&gt;不存 raw log 到 Shared Memory&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="320" x="1530" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="out_agent3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#F1E8FF;strokeColor=#7C3AED;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#32135B;" value="&lt;b&gt;Agent 3&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;读取 Execution Summary&lt;br&gt;生成根因报告 / 优化蓝图&lt;/span&gt;" vertex="1">
+          <mxGeometry height="62" width="320" x="1530" y="492" as="geometry" />
+        </mxCell>
+        <mxCell id="out_agent24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#F1E8FF;strokeColor=#7C3AED;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#32135B;" value="&lt;b&gt;Agent 2 / Agent 4&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Agent2：成熟度指标&lt;br&gt;Agent4：补丁回归结果&lt;/span&gt;" vertex="1">
+          <mxGeometry height="62" width="320" x="1530" y="568" as="geometry" />
+        </mxCell>
+        <mxCell id="out_mem" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#F1E8FF;strokeColor=#7C3AED;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#32135B;" value="&lt;b&gt;RV-OptKB / Shared Memory&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;性能证据回写；测试避坑摘要回写&lt;/span&gt;" vertex="1">
+          <mxGeometry height="52" width="320" x="1530" y="644" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="existing_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="summary_builder" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1510" y="681" />
+              <mxPoint x="1510" y="248" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="1" source="summary_builder" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="summary_schema" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" edge="1" parent="1" source="summary_schema" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="publish_hooks" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" edge="1" parent="1" source="publish_hooks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="out_agent3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" edge="1" parent="1" source="publish_hooks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="out_agent24" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1870" y="435" />
+              <mxPoint x="1870" y="599" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e35" edge="1" parent="1" source="publish_hooks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#1565C0;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=14;fontColor=#0B3A66;" target="out_mem" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1890" y="435" />
+              <mxPoint x="1890" y="670" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="kb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;Knowledge Base&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;稳定知识：RISC-V ISA、RVV、硬件文档、项目测试规范。&lt;br&gt;Agent1 只可读取测试模板说明，不写入 raw log。&lt;/span&gt;" vertex="1">
+          <mxGeometry height="66" width="430" x="385" y="962" as="geometry" />
+        </mxCell>
+        <mxCell id="rvoptkb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#F1E8FF;strokeColor=#7C3AED;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#32135B;" value="&lt;b&gt;RV-OptKB&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;优化知识：Optimization Case、Actionable Thought、General Idea。&lt;br&gt;Agent1 只回写 Performance Evidence。&lt;/span&gt;" vertex="1">
+          <mxGeometry height="66" width="545" x="845" y="962" as="geometry" />
+        </mxCell>
+        <mxCell id="shared_memory" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#FFF5CC;strokeColor=#DBA800;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#4A3600;" value="&lt;b&gt;Shared Memory&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;团队过程记忆：测试坑点、硬件异常、工具链问题、任务交接摘要。&lt;br&gt;不保存完整日志与大文件。&lt;/span&gt;" vertex="1">
+          <mxGeometry height="66" width="430" x="1405" y="962" as="geometry" />
+        </mxCell>
+        <mxCell id="e36" edge="1" parent="1" source="out_mem" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C3AED;strokeWidth=2;" target="rvoptkb" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1670" y="940" />
+              <mxPoint x="1117" y="940" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e37" edge="1" parent="1" source="out_mem" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#DBA800;strokeWidth=2;entryX=0.663;entryY=-0.03;entryDx=0;entryDy=0;entryPerimeter=0;" target="shared_memory" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1620" y="955" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e38" edge="1" parent="1" source="template_lib" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#41A86A;strokeWidth=2;dashed=1;" target="kb" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1090" y="940" />
+              <mxPoint x="600" y="940" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="state_line" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F7FBFF;strokeColor=#9DD0EE;strokeWidth=1.5;arcSize=8;fontFamily=Noto Sans CJK SC;fontSize=15;fontColor=#0D335B;spacing=4;" value="&lt;b&gt;最小闭环：&lt;/b&gt;调用方 → MCP-1 Adapter → 现有 TestPlan / Pipeline / Celery / Ansible → 节点执行 → MySQL + MinIO → Execution Summary → Agent3 诊断 / Agent4 回归 / RV-OptKB 与 Shared Memory 回写" vertex="1">
+          <mxGeometry height="38" width="1810" x="60" y="876" as="geometry" />
+        </mxCell>
+        <mxCell id="boundary_note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0B65C2;strokeWidth=1.5;arcSize=8;fontFamily=Noto Sans CJK SC;fontSize=16;fontStyle=1;fontColor=#0D335B;spacing=4;" value="&lt;b&gt;Agent1-lite 职责边界：&lt;/b&gt;负责测试执行、结果收集、摘要生成和分发；不做深度根因分析、不生成补丁、不直接提交开源社区。" vertex="1">
+          <mxGeometry height="32" width="1110" x="365" y="825" as="geometry" />
+        </mxCell>
+        <mxCell id="base_label" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D4ECFF;strokeColor=#2E86C1;strokeWidth=1.5;fontFamily=Noto Sans CJK SC;fontSize=20;fontStyle=1;fontColor=#08365E;" value="&lt;font style=&quot;color: rgb(204, 0, 0);&quot;&gt;复用现有自动化跨架构测试框架（保留为主）&lt;/font&gt;" vertex="1">
+          <mxGeometry height="44" width="430" x="390" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="master_title" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#0B65C2;strokeColor=#084B8A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=24;fontStyle=1;fontColor=#FFFFFF;" value="Master 端" vertex="1">
+          <mxGeometry height="36" width="150" x="390" y="398" as="geometry" />
+        </mxCell>
+        <mxCell id="worker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;Celery Worker&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;目标机消费任务&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="230" x="895" y="446" as="geometry" />
+        </mxCell>
+        <mxCell id="executor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#D9F0FF;strokeColor=#1B8DCB;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=17;fontColor=#062B4F;" value="&lt;b&gt;task_executor.py&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;执行 shell / python pipeline step&lt;br&gt;创建日志目录、结果目录&lt;/span&gt;" vertex="1">
+          <mxGeometry height="84" width="230" x="895" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="compress" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;结果压缩与上传&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;compress_dir&lt;br&gt;oss_upload → MinIO&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="230" x="895" y="631" as="geometry" />
+        </mxCell>
+        <mxCell id="arm_node" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;spacing=6;spacingTop=4;spacingBottom=4;fillColor=#E8F7EE;strokeColor=#41A86A;strokeWidth=2;fontFamily=Noto Sans CJK SC;fontSize=16;fontColor=#143D25;" value="&lt;b&gt;ARM 基线主机&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:13px&quot;&gt;成熟架构对照与比值计算&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="250" x="875" y="735" as="geometry" />
+        </mxCell>
+        <mxCell id="FuqH0YUBqhblpfX2y-vR-4" edge="1" parent="1" source="celery" style="endArrow=classic;html=1;rounded=0;exitX=1.005;exitY=0.308;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;strokeColor=#7EA6E0;strokeWidth=2;" target="worker" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="830" y="530" as="sourcePoint" />
+            <mxPoint x="880" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="FuqH0YUBqhblpfX2y-vR-5" edge="1" parent="1" source="plan_exec" style="endArrow=classic;html=1;rounded=0;entryX=0.004;entryY=0.554;entryDx=0;entryDy=0;strokeColor=#7EA6E0;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryPerimeter=0;" target="ansible" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="630" y="620" as="sourcePoint" />
+            <mxPoint x="914" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
