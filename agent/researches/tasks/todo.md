@@ -59,3 +59,29 @@
 - 图片：`agent/researches/symphony/assets/Coworking-Desktop-Light-Symphony.svg`、`agent/researches/symphony/assets/BeforeAndAfter-Desktop-Light-Symphony.svg`
 - 验证方式：检查 Markdown 图片引用；使用 `file` 确认 SVG 类型；使用 `python3 -m xml.etree.ElementTree` 解析两个 SVG
 - 验证边界：根据版权限制，最终产物为中文译介与结构化整理，未逐字复刻完整原文和大段 `SPEC.md` 代码块
+
+---
+
+# OpenAI Harness Engineering 文章翻译任务
+
+## 背景与目标
+
+- 来源文章：`https://openai.com/zh-Hans-CN/index/harness-engineering/`
+- 输出路径：`agent/researches/`
+- 输出要求：翻译为中文，保留原文图片
+
+## 执行计划
+
+- [x] 复习当前目录任务记录、研究文档格式和相关 lessons
+- [x] 抓取来源文章标题、作者、发布日期、章节与图片信息
+- [x] 在 `agent/researches/` 下生成中文 Markdown 翻译稿
+- [x] 下载并本地保存原文正文图片
+- [x] 验证 Markdown 图片引用、图片文件和任务记录
+
+## Review
+
+- 状态：已完成
+- 产物：`agent/researches/harness-engineering/harness-engineering.zh-CN.md`
+- 图片：`agent/researches/harness-engineering/assets/fig-1-codex-drives-the-app.webp`、`agent/researches/harness-engineering/assets/fig-2-full-observability-stack.svg`、`agent/researches/harness-engineering/assets/fig-3-agent-knowledge-limits.webp`、`agent/researches/harness-engineering/assets/fig-4-layered-domain-architecture.webp`
+- 验证方式：检查 Markdown 图片引用；使用 `file` 确认图片和 Markdown 类型；使用 `python3 -m xml.etree.ElementTree` 解析 SVG
+- 验证边界：来源页面本身为简体中文本地化版本；最终产物为中文译介与结构化整理，未逐字复刻完整原文
