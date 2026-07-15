@@ -1,87 +1,83 @@
-# 计划：riscv-contrib-scan 第三轮 —— 三路静态候选的深度甄别与成文
+# 计划：第四轮 `riscv-isa-optgap` —— ISA 批准差集 + asm-generic 优化差集
 
 ## Context（背景与动机）
 
-这是「内核 → RISC-V 可移植性/贡献点」系列研究的**第三轮**。前两轮（`kvm-riscv/`、`riscv-arm-gap/`）都以**补丁邮件列表**为源挖掘在途补丁的可移植性，均已完成并提交。
+「内核 → RISC-V 贡献点」系列已完成三轮，各用一类信号源：
+- 轮1 `kvm-riscv/`、轮2 `riscv-arm-gap/` —— **补丁邮件列表**（在途补丁的可移植性）。
+- 轮3 `riscv-contrib-scan/` —— **静态树扫描**（features 矩阵 TODO / Kconfig select 差集 / 代码 TODO）。
 
-第三轮 `riscv-contrib-scan/` **换了角度**：不看在途补丁，而用 `scripts/scan.py` 直接从**只读本地内核树** `/Users/zq/Desktop/patch-work/linux-riscv`（Linux v7.2.0-rc3）静态扫描，找「当前树的真实缺口」，与第二轮互补。三路信号（=用户说的「三个路径」）：
-- **§1 官方特性矩阵 TODO**：`Documentation/features` 中 riscv 标 TODO 的 6 项（维护者标注，最可信）。
-- **§2 Kconfig 能力差集**：arm64∪x86 有、riscv 未 select 的 247 个符号（arm64+x86 都有的 46 个=强信号 §2a；余 201 个=次强 §2b）。
-- **§3 代码内 TODO/桩**：arch/riscv 及 riscv 驱动内 54 处 TODO/FIXME/桩（+2 处 DTS）。
+用户问「还有其他可靠路径吗」。经 3 个只读子代理验证，确认**两条正交的新可靠路径**（本轮同时做，用户已选此组合）：
+- **① ISA 批准差集**（最 riscv 专属、假阳最低）：RVI 已 **ratified/frozen** 的扩展 ∖ 内核已识别集 `riscv_isa_ext[]`(cpufeature.c，~90 个)/hwprobe。"在表=ALREADY，缺=真缺口"是硬事实，信噪比高于轮3 两法。
+- **② asm-generic 优化差集**（greenfield 最高、与轮3 Kconfig 差集**零重叠**）：riscv 回退通用 C/标量、而 arm64/x86 有 ISA 优化汇编处。
 
-**问题**：第三轮只跑完自动扫描（`scan.py` + 原始 `README.md`），产出的是**机器 grep 的原始候选，含大量误报**（README 自己两处标注"需人工判断"）。相比前两轮缺少逐候选**四态判定**、`analysis/` 明细、**Top 候选排名表**、去误报后的结论。`riscv-contrib-scan/` 尚未提交（git `??`）。
+**本轮问题**：这两条路径目前只有子代理的口头验证摘要，没有落成与前三轮一致的交付物（`analysis/` 明细 + 四态判定 + Top 候选表 + 甄别后 README）。
 
-**目标**：复用前两轮（以 arm-gap 版为骨架）方法论，对三路候选做深度甄别与四态判定，剔除误报、核实 riscv 落点，补齐 `analysis/` 与 README 的 Top 候选表与结论，使第三轮达到与前两轮一致的完成度。**范围严格限制在 `riscv-contrib-scan/` 内**；内核树只读；不碰其他路径。
+**目标**：新建 `riscv-isa-optgap/`，复用前三轮方法论对两路候选做深度甄别与四态判定，核实每个 riscv 落点，产出 `analysis/` 与甄别版 README。**范围严格限制在该新目录内**；内核树只读；不碰其他轮目录；**不提交直到用户明确要求**。
 
-## 复用的方法论（arm-gap 版，`method-extract` 已提炼）
+## 已只读核实的锚点（本轮候选据此展开）
 
-**四态 rubric**（本轮语义：判「该缺口是否值得且可行地在 riscv 补上」）：
-- **ALREADY** —— riscv 其实已实现（scan 误报/假阳），引 `_baseline_riscv.md` 或源码为证。
-- **PORTABLE** —— 可直接 `select`（符号已有通用实现）或补通用层钩子（`mm/ kernel/ lib/ include/linux/ 框架 Documentation/ tools/`），几乎直接适用。
-- **PATTERN** —— 需在 `arch/riscv/*` 实现 arch 专属部分，**必须给出具体 riscv 落点文件 + 改写点**（可参照 arm64/x86 现成实现）。
-- **N-A** —— riscv 无对应硬件/ISA 语义、不适用；须点名所依赖的专属硬件/ISA。
+**① 确认为真缺口（arch/riscv 内零匹配）**：`Ssqosid`、`Ssctr/Smctr`、`Smcdeleg/Ssccfg`、`Smcsrind/Sscsrind`、`Ssdbltrp/Smdbltrp`、`Sdtrig`、`Smcntrpmf`。佐证：`arch/riscv` 无 `hw_breakpoint*`；`arch/riscv/Kconfig` 未接 resctrl。
+**① 确认为 ALREADY（须排除，勿报）**：`zacas/zabha/zawrs/smstateen/zicfilp/zicfiss/zimop/svadu` 均在 `cpufeature.c:506-587` 的 `riscv_isa_ext[]`。
+**② 确认为真缺口**：`arch/riscv/include/asm/string.h` 缺 `__HAVE_ARCH_MEMCMP`/`MEMCHR`（→ 退回 `lib/string.c` 泛型 C）；`arch/riscv/lib/strchr.S`/`strrchr.S` 存在但为字节循环（未上 Zbb）；`memcpy/memset/memmove.S` 纯标量。`lib/crypto/riscv/` 无 `polyval`、无 `NH/Adiantum`。
+**② 确认为 ALREADY（勿报）**：strlen/strcmp/strncmp/strnlen(Zbb)、`csum.c`(Zbb)、CRC(Zbc `lib/crc/riscv/`)、AES-zvkned、GHASH-zvkg、chacha-zvkb、sha256/512、sm3/sm4。
 
-**analysis/*.md 单条候选 4 字段**：`候选：符号/特性/文件:行（来源）` / `现状：riscv 当前如何（源码核实）` / `落点：arch/riscv 目标文件 + 依据` / `判定：四态 + 一句理由`。深度候选 3–8 条/文件，其余靠分类表覆盖；每文件 <800 行（前两轮实测 214–293 行）。
+**重要修正（推翻轮3）**：轮3 基线把 resctrl 判 N-A「无硬件」——错。`Ssqosid`(2024 批准) 即 riscv QoS 硬件，通用 `fs/resctrl/` 已在树内，riscv 仅未 `select ARCH_HAS_CPU_RESCTRL`。`HAVE_HW_BREAKPOINT` 缺口的 ISA 名 = `Sdtrig`。README 须显著标注。
 
-**README 交付物骨架**：标题+目标 → **TL;DR**（三路规模/甄别后真候选计数/四态结论/最高价值方向）→ §1 方法论（数据源=内核树静态扫描、与 arm-gap 互补、四态 rubric）→ §2 三路总览（各路指标表+噪声抽样）→ §3 arm64/x86↔riscv 机制对应速查 → **§4 Top N 候选**（P1 旗舰/P2 高价值/P3 机会 分级）→ §5 三路四态计数汇总表 → §6 结论与贡献路线建议（近期低风险 select / 中期补 arch 钩子 / 明确不追）→ 附录（目录结构、复现、局限与口径）。
-**Top 候选表列（5 列）**：`候选(特性/符号/TODO) | 缺口性质 | RISC-V 落点 | 判定 | 来源(features路径/Kconfig符号/文件:行)`。
+## 四态 rubric（本轮语义：该缺口是否值得且可行地在 riscv 补上）
 
-## 候选甄别要点（`candidate-triage` 实地核实，只读抽样）
+- **ALREADY** —— ① 已在 `riscv_isa_ext[]`/hwprobe；② 已有 arch 优化汇编。引源码行号为证（假阳）。
+- **PORTABLE** —— 主要是补通用层/直接 select（如 resctrl 通用 `fs/resctrl/` 已在，arch 侧仅少量 glue + `select`）。本轮较少。
+- **PATTERN** —— 需在 `arch/riscv/*` 实现 arch 专属部分（① cpufeature 探测 + hwprobe 键 + 子系统集成；② arch 汇编例程）。**必须给具体 riscv 落点文件**。本轮主体。
+- **N-A** —— 无 OS 语义 / 纯 M 态(Smrnmi/Smepmp) / 仍 draft(Svukte) / 无对应需求。点名理由。
 
-**§1（6 项 features TODO，全部确标 TODO）** 按"别家是否已做"三层排序：
-- **最优先（arm64+x86 都 ok）**：`cmpxchg-local`（≡ §2a HAVE_CMPXCHG_LOCAL）、`virt-cpuacct`。
-- **次优（仅 x86 ok，参照 x86 实现给 PATTERN）**：`kprobes-on-ftrace`、`optprobes`、`user-ret-profiler`。
-- **剔除（三家都 TODO，遗留技术）**：`cBPF-JIT`。
+## 目录结构（新建，仿轮3）
 
-**§2a（46 强信号）** 真候选约 **18–22（40–50%）**；判定前须逐一 grep 排「传递 select / config 假阳」：
-- 已证**假阳性**：`PARAVIRT` —— riscv 有 `config PARAVIRT`(Kconfig:1127)+PARAVIRT_TIME_ACCOUNTING，扫描只看 `select` 漏判 → 实为 ALREADY。**教训：本轮 §2 所有符号判定前须查 config/def_bool，不止 select。**
-- 真缺口簇：跟踪/NMI（NMI/PERF_EVENTS_NMI/HARDLOCKUP_DETECTOR_PERF/NMI_SAFE_THIS_CPU_OPS/TRACE_IRQFLAGS_NMI）、static_call/livepatch/reliable_stacktrace/KCSAN、SMT（SCHED_SMT/HOTPLUG_SMT/SCHED_CLUSTER）、MM（nonleaf_pmd_young/lazy_mmu_mode/memory_failure）、cmpxchg_local/double、hw_breakpoint、default_bpf_jit、cache_line_size。
-- N-A/ISA 未就绪（~12–16）：mem-encrypt/CC 簇、resctrl、pkeys、ACPI 簇、legacy-compat（UID16/OLD_SIG*）、power_supply。
+```
+riscv-isa-optgap/
+  analysis/
+    _baseline_riscv.md      # 能力基线 + 已识别 ext 集 + 已优化 asm 清单 + 假阳纪律 + resctrl 修正
+    _taxonomy.md            # 四态 rubric + ratified↔recognized 判法 + asm 优化判法 + 假阳纪律
+    _agent_instructions.md  # 子代理指令模板（读共享上下文→只读核实→四态→写文件→回摘要）
+    isa_priv_ras_qos.md     # ① 分片1：Ssqosid(+resctrl 修正/ARCH_HAS_CPU_RESCTRL)、Ssdbltrp/Smdbltrp、Sdtrig(hw_breakpoint.c 全缺)、state-enable 束
+    isa_perf_counters.md    # ① 分片2：Ssctr/Smctr(perf branch-stack)、Smcdeleg/Ssccfg(计数器委派)、Smcsrind/Sscsrind(间接 CSR 依赖门)、Smcntrpmf
+    asm_string.md           # ② 分片1：memcmp/memchr(Zbb orc.b)、strchr/strrchr(→Zbb)、memcpy/memset/memmove(标量→向量，注争议)
+    asm_crypto.md           # ② 分片2：polyval(Zvkg 复用 ghash)、NH/Adiantum(低端无 AES)、crypto 覆盖对比 arm64
+  scripts/
+    gap_probe.sh            # 小复现脚本：dump 已识别 riscv_isa_ext[] + 列 arch string.h HAVE 宏 + lib/crypto 文件清单
+  README.md                 # 甄别版交付物
+```
 
-**§3（54 处代码 TODO）** 真缺口:噪声 ≈ **1:3**（噪声 ~36 = 正常运行时分支/常量/日志，批量标 N-A）。**8 个可动作真缺口**：
-1. `drivers/iommu/riscv/iommu.c:1149` IOMMU Second-Stage（G-stage/嵌套翻译）— 高值
-2. `arch/riscv/kvm/aia_imsic.c:773,864` KVM AIA IMSIC↔IOMMU 映射 — 高值
-3. `drivers/irqchip/irq-riscv-imsic-platform.c:230` IMSIC Multi-MSI — 中值
-4. `arch/riscv/net/bpf_jit_comp64.c:615`(+comp32:1277/1292) BPF-JIT 1/2 字节 RMW 原子 — 小而可移植
-5. `drivers/perf/riscv_pmu_sbi.c:1132`(+kvm/vcpu_pmu.c:320/343) PMU 虚拟化计数器 — 中值
-6. `arch/riscv/kernel/perf_callchain.c:32/43` perf guest-OS callchain — 中值
-7. `arch/riscv/kernel/probes/decode-insn.c:29` kprobes REJECTED 指令改模拟 — 低中值
-8. `arch/riscv/include/asm/spinlock.h:18` alternative 取代 static key — 低值（与 static_call 主题相关）
+## 执行阶段
 
-**与前两轮重叠（勿重复深挖，交叉引用即可）**：§2a 的 KCSAN/static_call/livepatch/COPY_MC/GENERIC_IRQ_ENTRY、§2b 的 haltpoll 均在 memory「真实缺口」清单已判；§3 的 KVM IOMMU/AIA、PMU 虚拟化与 **kvm 轮**重叠；cmpxchg-local ≡ HAVE_CMPXCHG_LOCAL（互为佐证）。
+### 阶段 A：主代理写 3 份共享上下文 + 复现脚本
+`_baseline_riscv.md`（裁剪轮3 基线 + 本轮锚点：已识别 ext 集、已优化 asm 清单、resctrl 修正）、`_taxonomy.md`、`_agent_instructions.md`、`scripts/gap_probe.sh`（把上文只读核实的 grep/ls 命令固化，供"复现"附录）。
 
-## 执行方案（阶段）
+### 阶段 B：派 4 个 `general-purpose` 分析子代理（1 波并行）
+分片 = `isa_priv_ras_qos` / `isa_perf_counters` / `asm_string` / `asm_crypto`。每个：读 3 份共享上下文 → 到只读内核树核实（① 另可用 web 确认 ratified/frozen 状态；判 ALREADY 前必查 `riscv_isa_ext[]` 与已优化 asm 清单）→ 逐条四态判定（给 `文件:行` 落点）→ 写 `analysis/<name>.md`（<800 行）→ 回 ≤250 字摘要。**不派生下级子代理**。
 
-### 阶段 A：落地共享上下文（主代理写，`riscv-contrib-scan/analysis/` 下 3 文件）
-- `_baseline_riscv.md` —— 复用/裁剪 arm-gap 版 riscv 能力基线 + memory 真实缺口清单 + 无对应 ISA→N-A 清单（MTE/PAC/SME/SPE、GIC/ITS/SMMU）。
-- `_taxonomy.md` —— 本轮四态 rubric（源码静态信号语义版）+ arm64/x86↔riscv 机制速查 + **假阳排查纪律**（查 config/def_bool 不止 select）。
-- `_agent_instructions.md` —— 分析子代理指令模板（复用 arm-gap 6 步骨架，改为"核实源码树静态候选"）。
+### 阶段 C：主代理综合成文
+汇总 4 份 analysis → 写 `riscv-isa-optgap/README.md`：TL;DR → §1 方法论(两新信号源/为何可靠/四态) → §2 ① ISA 差集总览 → §3 ② asm 差集总览 → §4 Top 候选表(P1/P2/P3；5 列：候选|缺口性质|RISC-V 落点|判定|来源) → §5 四态计数 → §6 结论与路线(近期低风险/中期/明确不追) → §7 重要修正(resctrl/Ssqosid、hw_breakpoint=Sdtrig) → 附录(结构/复现/局限)。
 
-### 阶段 B：派 4 个 `general-purpose` 分析子代理（1 波并行，四态判定）
-每子代理：读 3 份共享上下文 → 到只读内核树核实（判 ALREADY/假阳前必查 config+def_bool）→ 逐条四态判定 → 写 `analysis/<name>.md`（<800 行）→ 回 ≤250 字摘要。**不再派生下级子代理**。
+## 子代理分片要点
 
-### 阶段 C：综合成文（主代理）
-汇总各 analysis → 重写 `riscv-contrib-scan/README.md`（前置甄别后 TL;DR + §3 机制速查 + §4 Top 候选表 + §6 结论，保留原始扫描结果为附录并注明"只看 select"口径局限）。
-
-## 子代理分片计划（定稿：4 个子代理，1 波并行）
-
-1. **`feat_official`（§1 官方 TODO 6 项）**：按三层排序逐一判；深挖 cmpxchg-local / virt-cpuacct 的 riscv 落点，kprobes-on-ftrace/optprobes/user-ret-profiler 参照 x86 给 PATTERN 落点，cBPF-JIT 标最低价值剔除。→ `analysis/feat_official.md`
-2. **`kconfig_trace_nmi`（§2a 跟踪/调试/NMI 硬化簇）**：KCSAN/static_call/livepatch/reliable_stacktrace（已判项交叉引用不重挖）、NMI 簇、hw_breakpoint、C_RECORDMCOUNT、hardlockup 等；逐一 grep 排假阳。→ `analysis/kconfig_trace_nmi.md`
-3. **`kconfig_sched_mm_rest`（§2a 其余 + N-A 簇 + §2b 201 抽样）**：SMT 簇、MM 簇、cmpxchg/cache_line_size/default_bpf_jit/DMA 铺垫等能力类；mem-encrypt/resctrl/pkeys/ACPI/legacy/power_supply 批量归 N-A；§2b 201 个抽样批量归类（平台/时钟/SoC/x86-legacy→N-A）并捞漏网通用符号、排假阳（VMAP_STACK/JUMP_LABEL/PERF_EVENTS 等 riscv 已有）。→ `analysis/kconfig_sched_mm_rest.md`
-4. **`code_todo`（§3 全部）**：8 个真缺口逐一深挖 riscv 落点与缺口性质（KVM/IOMMU/IRQ 与 kvm 轮交叉引用）；36 行噪声批量标 N-A 并说明理由。→ `analysis/code_todo.md`
+1. **`isa_priv_ras_qos`**：`Ssqosid`→PATTERN/PORTABLE（通用 `fs/resctrl/` 已在，arch 落点 cpufeature + `switch_to`(`srmcfg` 随任务切换) + `select ARCH_HAS_CPU_RESCTRL`；**显式推翻轮3 N-A**）；`Ssdbltrp/Smdbltrp`→PATTERN（traps/entry + KVM `henvcfg.DTE`）；`Sdtrig`→PATTERN（全新 `arch/riscv/kernel/hw_breakpoint.c`，接 perf/ptrace/kgdb，即 `HAVE_HW_BREAKPOINT`）；state-enable/Ssstateen 束→按覆盖度判(多为低值/部分 ALREADY)。
+2. **`isa_perf_counters`**：`Ssctr/Smctr`→PATTERN（perf branch-stack≈LBR/BRBE，CSR 上下文切换 + Ssstateen 门，`drivers/perf/`）；`Smcdeleg/Ssccfg`→PATTERN（S 态直读 HPM 免 SBI 陷入，`drivers/perf/riscv_pmu*`）；`Smcsrind/Sscsrind`→PATTERN（间接 CSR，是前两者依赖门，`sireg` 现仅 KVM-AIA 用）；`Smcntrpmf`→PATTERN（计数器按特权模式过滤）。**注意**：均热点，须 web 查是否已有在途 RFC 并注明 greenfield 度。
+3. **`asm_string`**：`memcmp`/`memchr`→PATTERN（`arch/riscv/lib/` 新增 .S，仿 strlen 用 Zbb `orc.b`；`asm/string.h` 补 `__HAVE_ARCH_MEMCMP/MEMCHR`——**最干净**）；`strchr`/`strrchr`→PATTERN（现字节循环，改 Zbb）；`memcpy/memset/memmove`→PATTERN 低（标量→向量，in-kernel 向量化有争议，注 `riscv_v_helpers.c` 现仅 uaccess 用）。
+4. **`asm_crypto`**：`polyval`→PATTERN（已具 Zvkg/ghash，复用低，`lib/crypto/riscv/`）；`NH/Adiantum`→PATTERN（适配无 AES 低端 RV）；对比 arm64 crypto 覆盖捞漏，**已做项(AES/GHASH/chacha/sha/sm3/sm4)标 ALREADY 勿报**；SHA-1 废弃/SHA-3 无对应 ext→N-A。
 
 ## 验证（完成前自检）
 
-- [ ] 每个 PORTABLE/PATTERN 候选可追溯到 features 路径 / Kconfig 符号 / `文件:行`，riscv 落点在本地树核实存在（带行号更佳）。
-- [ ] **排假阳**：§2 每符号判定前查 config/def_bool（不止 select），杜绝 PARAVIRT 式误判。
-- [ ] 不把 riscv **已有**能力误报为缺口（对照基线：combo-spinlock/Svnapot/Zabha/RVV/PARAVIRT 等）。
-- [ ] 不把 riscv **无对应 ISA** 项（MTE/PAC/SME/GIC/ITS/SMMU 相关符号）误报为可移植。
-- [ ] 与前两轮结论交叉一致（重叠真缺口 KCSAN/static_call/GENERIC_IRQ_ENTRY 判定不冲突）。
-- [ ] README 段落齐全（TL;DR/Top 表/结论/附录口径），每文件 <800 行。
+- [ ] 每个 ① 候选：ratified/frozen spec 名（web 确认）+ 确不在 `riscv_isa_ext[]`/hwprobe（`文件:行`）+ 落点已命名。
+- [ ] 每个 ② 候选：通用回退已核实（缺 `__HAVE_ARCH_*` 或标量 .S，`文件:行`）+ arm64/x86 优化对端引用 + 使能优化的 RV 扩展(Zbb/Zbc/Zvkg) + 落点文件。
+- [ ] **排 ALREADY 假阳**：① 对照已识别 ext 集；② 对照已优化 asm 清单（strlen/strcmp/csum/CRC/AES/GHASH/chacha/sha/sm3/sm4）。
+- [ ] draft(Svukte)/纯 M 态(Smrnmi/Smepmp)/纯计算无 OS 语义 → N-A 并注明。
+- [ ] resctrl/Ssqosid 修正在 README 显著标注；与前三轮交叉一致（hw_breakpoint 现有 ISA 名 Sdtrig；交叉引用轮3 基线）。
+- [ ] ① 热点候选注明「多有在途 RFC、greenfield 度低」。
+- [ ] 中文；每文件 <800 行；仅 `riscv-isa-optgap/` 内新建；内核树只读；未提交。
 
 ## 约束
 
-- 只在 `riscv-contrib-scan/` 内新建/修改；不碰 `kvm-riscv/`、`riscv-arm-gap/`、内核树（只读）。
-- 中文成文；不 commit/push（除非用户明确要求）。
-- 子代理只读内核树，不再派生下级子代理。
-- 本轮**不改 `scan.py`**（其"只看 select"口径缺陷在 README 附录注明即可，除非用户要求修脚本）。
+- 只在 `riscv-isa-optgap/` 内新建；不碰 `kvm-riscv/`、`riscv-arm-gap/`、`riscv-contrib-scan/`、内核树（只读）。
+- 中文成文；提交用 `docs:` 前缀、不加 Co-Authored-By；**仅用户明确要求时** commit/push。
+- 子代理只读内核树（① 可 web 查 ratified 状态），不派生下级子代理。
+- **② 范围护栏**：聚焦上述 ~5-6 个已验证候选，不穷举所有可能的汇编优化（防发散）；memcpy/memset 向量化标低优先级、不深挖。
